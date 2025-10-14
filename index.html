@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>국회 표결 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'NexonLv1Gothic';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/NEXON Lv1 Gothic OTF Light.woff') format('woff');
+            font-weight: 300;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'NexonLv1Gothic';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/NEXON Lv1 Gothic OTF.woff') format('woff');
+            font-weight: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'NexonLv1Gothic';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/NEXON Lv1 Gothic OTF Bold.woff') format('woff');
+            font-weight: 700;
+            font-display: swap;
+        }
+        body {
+            font-family: 'NexonLv1Gothic', 'Noto Sans KR', sans-serif;
+            background-color: #000;
+        }
+        .vote-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 12px 8px;
+        }
+        .vote-circle {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 5px;
+        }
+        .status-aye { background-color: #22c55e; }
+        .status-nay { background-color: #ef4444; }
+        .status-abstain { background-color: #f59e0b; }
+        .status-absent { background-color: #4b5563; }
+        .screen { display: none; }
+        .screen.active { 
+            display: flex; /* Use flex for centering */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #announcement-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            z-index: 9999;
+        }
+        #results-chart-container {
+            width: 100%;
+            max-width: 400px;
+            margin: auto;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div id="app" class="w-full h-screen">
+
+        <!-- Screen 1: Setup -->
+        <div id="setup-screen" class="screen active w-full max-w-3xl p-6 mx-auto">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-sky-400 mb-2">표결 시뮬레이션 설정</h1>
+                <p class="text-slate-400">법안명과 정당 정보를 설정한 후 시뮬레이션을 시작하세요.</p>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <label for="bill-title-input" class="block text-lg font-medium text-slate-300 mb-2">법안명</label>
+                    <textarea id="bill-title-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none h-24 resize-none"></textarea>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">정당 및 의석수</h3>
+                    <div id="party-list-editor" class="space-y-2 mb-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
+                        <!-- Party editor rows go here -->
+                    </div>
+                    <div class="flex justify-end">
+                         <button id="add-party-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition">+ 정당 추가</button>
+                    </div>
+                </div>
+                <button id="start-simulation-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-lg text-xl transition shadow-lg">시뮬레이션 시작</button>
+            </div>
+        </div>
+        
+        <!-- Screen 1.5: Bill Announcement -->
+        <div id="announcement-screen" class="screen">
+            <h1 id="announcement-title" class="text-4xl lg:text-5xl font-bold text-center text-white p-8"></h1>
+        </div>
+
+        <!-- Screen 2: Voting -->
+        <div id="voting-screen" class="screen max-w-screen-2xl mx-auto w-full h-full p-4">
+            <div class="bg-gray-900/80 border border-gray-700 p-4 sm:p-6 rounded-lg shadow-2xl shadow-sky-500/10 w-full h-full flex flex-col">
+                <header class="text-center mb-4">
+                    <h1 id="display-bill-title" class="text-2xl sm:text-3xl font-bold text-sky-400"></h1>
+                </header>
+                <div class="flex justify-center items-center flex-wrap gap-x-4 gap-y-2 bg-slate-900/50 border border-slate-700 p-3 rounded-md text-center mb-4 text-lg">
+                    <div class="flex items-center">
+                        <span class="text-slate-300 mr-2">재적</span>
+                        <span id="count-total" class="font-bold text-white">0</span>
+                        <span class="text-slate-400 ml-1">인</span>
+                    </div>
+                    <div class="h-5 w-px bg-slate-600"></div>
+                    <div class="flex items-center">
+                        <span class="text-slate-300 mr-2">재석</span>
+                        <span id="count-present" class="font-bold text-white">0</span>
+                        <span class="text-slate-400 ml-1">인</span>
+                    </div>
+                    <div class="h-5 w-px bg-slate-600"></div>
+                    <div class="flex items-center">
+                        <span class="text-green-400 mr-2">찬성</span>
+                        <span id="count-aye" class="font-bold text-green-400">0</span>
+                        <span class="text-green-400 ml-1">인</span>
+                    </div>
+                    <div class="h-5 w-px bg-slate-600"></div>
+                    <div class="flex items-center">
+                        <span class="text-red-400 mr-2">반대</span>
+                        <span id="count-nay" class="font-bold text-red-400">0</span>
+                        <span class="text-red-400 ml-1">인</span>
+                    </div>
+                    <div class="h-5 w-px bg-slate-600"></div>
+                    <div class="flex items-center">
+                        <span class="text-amber-400 mr-2">기권</span>
+                        <span id="count-abstain" class="font-bold text-amber-400">0</span>
+                        <span class="text-amber-400 ml-1">인</span>
+                    </div>
+                </div>
+                <div class="bg-black/30 p-4 rounded-lg flex-grow overflow-y-auto">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                        <div id="member-grid-col1" class="vote-grid"></div>
+                        <div id="member-grid-col2" class="vote-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 3: Results -->
+        <div id="results-screen" class="screen w-full max-w-5xl p-6 mx-auto">
+             <div class="w-full bg-gray-900/80 border border-gray-700 p-6 rounded-lg">
+                <h1 id="results-bill-title" class="text-2xl font-bold text-center mb-4"></h1>
+                <div class="flex justify-center items-center flex-wrap gap-x-4 gap-y-2 bg-slate-900/50 border border-slate-700 p-3 rounded-md text-center mb-6 text-lg">
+                    <div class="flex items-center">
+                        <span class="text-slate-300 mr-2">재적</span>
+                        <span id="results-total" class="font-bold text-white">0</span>
+                        <span class="text-slate-400 ml-1">인</span>
+                    </div>
+                    <div class="h-5 w-px bg-slate-600"></div>
+                    <div class="flex items-center">
+                        <span class="text-slate-300 mr-2">총투표</span>
+                        <span id="results-present" class="font-bold text-white">0</span>
+                        <span class="text-slate-400 ml-1">표</span>
+                    </div>
+                    <div class="h-5 w-px bg-slate-600"></div>
+                    <div class="flex items-center">
+                        <span class="text-green-400 mr-2">찬성</span>
+                        <span id="results-aye" class="font-bold text-green-400">0</span>
+                        <span class="text-green-400 ml-1">표</span>
+                    </div>
+                    <div class="h-5 w-px bg-slate-600"></div>
+                    <div class="flex items-center">
+                        <span class="text-red-400 mr-2">반대</span>
+                        <span id="results-nay" class="font-bold text-red-400">0</span>
+                        <span class="text-red-400 ml-1">표</span>
+                    </div>
+                    <div class="h-5 w-px bg-slate-600"></div>
+                    <div class="flex items-center">
+                        <span class="text-amber-400 mr-2">기권</span>
+                        <span id="results-abstain" class="font-bold text-amber-400">0</span>
+                        <span class="text-amber-400 ml-1">표</span>
+                    </div>
+                </div>
+                <div id="results-chart-container">
+                    <canvas id="results-chart"></canvas>
+                </div>
+                <div class="grid grid-cols-3 gap-4 mt-6 text-center text-lg">
+                    <div class="text-green-400">
+                        <p class="font-bold">찬성</p>
+                        <p id="results-aye-percent">0.00%</p>
+                    </div>
+                    <div class="text-red-400">
+                        <p class="font-bold">반대</p>
+                        <p id="results-nay-percent">0.00%</p>
+                    </div>
+                    <div class="text-amber-400">
+                        <p class="font-bold">기권</p>
+                        <p id="results-abstain-percent">0.00%</p>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <button id="restart-btn" class="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition">다시 시작</button>
+                </div>
+             </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        const app = {
+            state: {
+                currentScreen: 'setup',
+                billTitle: '신행정수도 후속대책을 위한 연기·공주지역 행정중심복합도시 건설을 위한 특별법',
+                parties: [],
+                members: [],
+                voteInProgress: false,
+                voteResults: {},
+                chart: null
+            },
+
+            init() {
+                this.cacheDOM();
+                this.bindEvents();
+                this.loadInitialParties();
+                this.render();
+            },
+
+            cacheDOM() {
+                this.dom = {
+                    screens: {
+                        setup: document.getElementById('setup-screen'),
+                        announcement: document.getElementById('announcement-screen'),
+                        voting: document.getElementById('voting-screen'),
+                        results: document.getElementById('results-screen'),
+                    },
+                    billTitleInput: document.getElementById('bill-title-input'),
+                    announcementTitle: document.getElementById('announcement-title'),
+                    partyListEditor: document.getElementById('party-list-editor'),
+                    addPartyBtn: document.getElementById('add-party-btn'),
+                    startSimulationBtn: document.getElementById('start-simulation-btn'),
+                    restartBtn: document.getElementById('restart-btn'),
+                    displayBillTitle: document.getElementById('display-bill-title'),
+                    memberGridCol1: document.getElementById('member-grid-col1'),
+                    memberGridCol2: document.getElementById('member-grid-col2'),
+                    counts: {
+                        total: document.getElementById('count-total'),
+                        present: document.getElementById('count-present'),
+                        aye: document.getElementById('count-aye'),
+                        nay: document.getElementById('count-nay'),
+                        abstain: document.getElementById('count-abstain'),
+                    },
+                    resultsBillTitle: document.getElementById('results-bill-title'),
+                    resultsChart: document.getElementById('results-chart').getContext('2d'),
+                    resultsTotal: document.getElementById('results-total'),
+                    resultsPresent: document.getElementById('results-present'),
+                    resultsAye: document.getElementById('results-aye'),
+                    resultsNay: document.getElementById('results-nay'),
+                    resultsAbstain: document.getElementById('results-abstain'),
+                    resultsAyePercent: document.getElementById('results-aye-percent'),
+                    resultsNayPercent: document.getElementById('results-nay-percent'),
+                    resultsAbstainPercent: document.getElementById('results-abstain-percent'),
+                };
+            },
+
+            bindEvents() {
+                this.dom.addPartyBtn.addEventListener('click', () => this.addParty());
+                this.dom.partyListEditor.addEventListener('click', (e) => {
+                    if (e.target.dataset.action === 'remove') this.removeParty(e.target.dataset.id);
+                });
+                this.dom.startSimulationBtn.addEventListener('click', () => this.startSimulation());
+                this.dom.restartBtn.addEventListener('click', () => this.reset());
+            },
+
+            loadInitialParties() {
+                this.state.parties = [
+                    { id: Date.now() + 1, name: '더불어민주당', seats: 169, stance: 'aye', defectionRate: 0.0001 },
+                    { id: Date.now() + 2, name: '국민의힘', seats: 115, stance: 'nay', defectionRate: 0.0001 },
+                    { id: Date.now() + 3, name: '정의당', seats: 6, stance: 'aye', defectionRate: 0.0001 },
+                    { id: Date.now() + 4, name: '무소속', seats: 8, stance: 'random', defectionRate: 1.0 },
+                ];
+            },
+            
+            addParty() {
+                this.state.parties.push({
+                    id: Date.now(), name: '새 정당', seats: 1, stance: 'aye', defectionRate: 0.0001,
+                });
+                this.renderPartyEditor();
+            },
+            
+            removeParty(id) {
+                this.state.parties = this.state.parties.filter(p => p.id != id);
+                this.renderPartyEditor();
+            },
+
+            startSimulation() {
+                this.state.billTitle = this.dom.billTitleInput.value;
+                this.dom.partyListEditor.querySelectorAll('.party-row').forEach(row => {
+                    const id = row.dataset.id;
+                    const party = this.state.parties.find(p => p.id == id);
+                    if (party) {
+                        party.name = row.querySelector('[data-prop="name"]').value;
+                        party.seats = parseInt(row.querySelector('[data-prop="seats"]').value) || 0;
+                        party.stance = row.querySelector('[data-prop="stance"]').value;
+                    }
+                });
+                
+                this.generateMembers();
+                this.dom.announcementTitle.textContent = this.state.billTitle;
+                this.switchScreen('announcement');
+                
+                setTimeout(() => {
+                    this.switchScreen('voting');
+                    this.startVote();
+                }, 5000);
+            },
+
+            generateMembers() {
+                this.state.members = [];
+                this.state.parties.forEach(party => {
+                    for (let i = 1; i <= party.seats; i++) {
+                        this.state.members.push({
+                            id: `${party.id}-${i}`, party: party.name, stance: party.stance,
+                            defectionRate: party.defectionRate, status: 'absent',
+                        });
+                    }
+                });
+            },
+            
+            startVote() {
+                if (this.state.voteInProgress || this.state.members.length === 0) return;
+                this.state.voteInProgress = true;
+                
+                const attendanceRate = 0.85 + Math.random() * 0.13;
+                const presentMembers = this.state.members
+                    .map(m => ({ ...m, sort: Math.random() }))
+                    .sort((a, b) => a.sort - b.sort)
+                    .slice(0, Math.floor(this.state.members.length * attendanceRate));
+
+                let voteIndex = 0;
+                const voteInterval = setInterval(() => {
+                    if (voteIndex >= presentMembers.length) {
+                        clearInterval(voteInterval);
+                        this.state.voteInProgress = false;
+                        setTimeout(() => this.showResults(), 1000);
+                        return;
+                    }
+                    
+                    const memberToVote = this.state.members.find(m => m.id === presentMembers[voteIndex].id);
+                    if (memberToVote) {
+                        const isDefector = Math.random() < memberToVote.defectionRate;
+                        let vote;
+                        if (memberToVote.stance === 'random') {
+                           const roll = Math.random();
+                           if(roll < 0.45) vote = 'aye';
+                           else if(roll < 0.9) vote = 'nay';
+                           else vote = 'abstain';
+                        } else {
+                           vote = isDefector ? (memberToVote.stance === 'aye' ? 'nay' : 'aye') : memberToVote.stance;
+                           if (isDefector && Math.random() < 0.3) vote = 'abstain';
+                        }
+                        memberToVote.status = vote;
+                    }
+                    
+                    this.renderVotingScreen();
+                    voteIndex++;
+                }, 20);
+            },
+            
+            showResults() {
+                const aye = this.state.members.filter(m => m.status === 'aye').length;
+                const nay = this.state.members.filter(m => m.status === 'nay').length;
+                const abstain = this.state.members.filter(m => m.status === 'abstain').length;
+                this.state.voteResults = { aye, nay, abstain };
+                
+                this.switchScreen('results');
+                this.renderResultsScreen();
+            },
+            
+            reset() {
+                if(this.state.chart) this.state.chart.destroy();
+                this.state.chart = null;
+                this.state.members = [];
+                this.state.voteResults = {};
+                this.switchScreen('setup');
+            },
+
+            switchScreen(screenName) {
+                this.state.currentScreen = screenName;
+                Object.values(this.dom.screens).forEach(screen => screen.classList.remove('active'));
+                this.dom.screens[screenName].classList.add('active');
+            },
+
+            render() {
+                this.renderPartyEditor();
+                this.dom.billTitleInput.value = this.state.billTitle;
+            },
+            
+            renderPartyEditor() {
+                this.dom.partyListEditor.innerHTML = this.state.parties.map(p => `
+                    <div class="party-row flex items-center gap-2" data-id="${p.id}">
+                        <input data-prop="name" type="text" value="${p.name}" class="flex-grow bg-slate-800 border border-slate-600 rounded px-2 py-1">
+                        <input data-prop="seats" type="number" value="${p.seats}" class="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1">
+                        <select data-prop="stance" class="w-28 bg-slate-800 border border-slate-600 rounded px-2 py-1">
+                            <option value="aye" ${p.stance === 'aye' ? 'selected' : ''}>찬성 당론</option>
+                            <option value="nay" ${p.stance === 'nay' ? 'selected' : ''}>반대 당론</option>
+                            <option value="random" ${p.stance === 'random' ? 'selected' : ''}>자유 투표</option>
+                        </select>
+                        <button data-action="remove" data-id="${p.id}" class="text-red-500 hover:text-red-400 font-bold py-1 px-2 text-xl">&times;</button>
+                    </div>
+                `).join('');
+            },
+
+            renderVotingScreen() {
+                this.dom.displayBillTitle.textContent = this.state.billTitle;
+                const total = this.state.members.length;
+                const present = this.state.members.filter(m => m.status !== 'absent').length;
+                const aye = this.state.members.filter(m => m.status === 'aye').length;
+                const nay = this.state.members.filter(m => m.status === 'nay').length;
+                const abstain = this.state.members.filter(m => m.status === 'abstain').length;
+
+                this.dom.counts.total.textContent = total;
+                this.dom.counts.present.textContent = present;
+                this.dom.counts.aye.textContent = aye;
+                this.dom.counts.nay.textContent = nay;
+                this.dom.counts.abstain.textContent = abstain;
+
+                const midIndex = Math.ceil(this.state.members.length / 2);
+                const col1Members = this.state.members.slice(0, midIndex);
+                const col2Members = this.state.members.slice(midIndex);
+
+                const renderColumn = (members) => members.map(member => `
+                    <div class="flex items-center gap-2">
+                        <div class="vote-circle status-${member.status}"></div>
+                        <span class="text-sm truncate" title="${member.party}">${member.party}</span>
+                    </div>
+                `).join('');
+
+                this.dom.memberGridCol1.innerHTML = renderColumn(col1Members);
+                this.dom.memberGridCol2.innerHTML = renderColumn(col2Members);
+            },
+
+            renderResultsScreen() {
+                this.dom.resultsBillTitle.textContent = this.state.billTitle;
+                const { aye, nay, abstain } = this.state.voteResults;
+                const totalMembers = this.state.members.length;
+                const totalVotes = aye + nay + abstain;
+
+                this.dom.resultsTotal.textContent = totalMembers;
+                this.dom.resultsPresent.textContent = totalVotes;
+                this.dom.resultsAye.textContent = aye;
+                this.dom.resultsNay.textContent = nay;
+                this.dom.resultsAbstain.textContent = abstain;
+                
+                this.dom.resultsAyePercent.textContent = totalVotes > 0 ? ((aye / totalVotes) * 100).toFixed(2) + '%' : '0.00%';
+                this.dom.resultsNayPercent.textContent = totalVotes > 0 ? ((nay / totalVotes) * 100).toFixed(2) + '%' : '0.00%';
+                this.dom.resultsAbstainPercent.textContent = totalVotes > 0 ? ((abstain / totalVotes) * 100).toFixed(2) + '%' : '0.00%';
+
+                this.create2DChart();
+            },
+
+            create2DChart() {
+                if (this.state.chart) {
+                    this.state.chart.destroy();
+                }
+                
+                const { aye, nay, abstain } = this.state.voteResults;
+
+                this.state.chart = new Chart(this.dom.resultsChart, {
+                    type: 'pie',
+                    data: {
+                        labels: ['찬성', '반대', '기권'],
+                        datasets: [{
+                            data: [aye, nay, abstain],
+                            backgroundColor: [
+                                'rgba(34, 197, 94, 0.8)',
+                                'rgba(239, 68, 68, 0.8)',
+                                'rgba(245, 158, 11, 0.8)'
+                            ],
+                            borderColor: [
+                                '#16a34a',
+                                '#dc2626',
+                                '#d97706'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        animation: {
+                            duration: 0
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: true
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+</html>
+
