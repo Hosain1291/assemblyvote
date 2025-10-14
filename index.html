@@ -78,7 +78,7 @@
         <!-- Screen 1: Setup -->
         <div id="setup-screen" class="screen active w-full max-w-3xl p-6 mx-auto">
             <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-sky-400 mb-2">국회 표결 설정</h1>
+                <h1 class="text-4xl font-bold text-sky-400 mb-2">국회표결 시나리오</h1>
                 <p class="text-slate-400">법안명과 정당 정보를 설정한 후 시뮬레이션을 시작하세요.</p>
             </div>
             <div class="space-y-6">
@@ -277,9 +277,9 @@
 
             loadInitialParties() {
                 this.state.parties = [
-                    { id: Date.now() + 1, name: '더불어민주당', seats: 169, stance: 'aye', defectionRate: 0.001 },
-                    { id: Date.now() + 2, name: '국민의힘', seats: 115, stance: 'nay', defectionRate: 0.001 },
-                    { id: Date.now() + 3, name: '정의당', seats: 6, stance: 'aye', defectionRate: 0.001 },
+                    { id: Date.now() + 1, name: '더불어민주당', seats: 169, stance: 'aye', defectionRate: 0.0001 },
+                    { id: Date.now() + 2, name: '국민의힘', seats: 115, stance: 'nay', defectionRate: 0.0001 },
+                    { id: Date.now() + 3, name: '정의당', seats: 6, stance: 'aye', defectionRate: 0.0001 },
                     { id: Date.now() + 4, name: '무소속', seats: 8, stance: 'random', defectionRate: 1.0 },
                 ];
             },
@@ -334,7 +334,7 @@
                 if (this.state.voteInProgress || this.state.members.length === 0) return;
                 this.state.voteInProgress = true;
                 
-                const attendanceRate = 0.85 + Math.random() * 0.13;
+                const attendanceRate = 0.7; // 참석률 70%로 고정
                 const presentMembers = this.state.members
                     .map(m => ({ ...m, sort: Math.random() }))
                     .sort((a, b) => a.sort - b.sort)
@@ -345,7 +345,8 @@
                     if (voteIndex >= presentMembers.length) {
                         clearInterval(voteInterval);
                         this.state.voteInProgress = false;
-                        setTimeout(() => this.showResults(), 1000);
+                        // 투표 종료 후 결과 화면으로 넘어가기 전 5초 지연
+                        setTimeout(() => this.showResults(), 5000);
                         return;
                     }
                     
