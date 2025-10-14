@@ -34,15 +34,15 @@
         }
         .vote-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-            gap: 12px 8px;
+            grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+            gap: 8px 4px;
         }
         .vote-circle {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             flex-shrink: 0;
-            margin-top: 5px;
+            margin-top: 4px;
         }
         .status-aye { background-color: #22c55e; }
         .status-nay { background-color: #ef4444; }
@@ -78,7 +78,7 @@
         <!-- Screen 1: Setup -->
         <div id="setup-screen" class="screen active w-full max-w-3xl p-6 mx-auto">
             <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-sky-400 mb-2">표결 시뮬레이션 설정</h1>
+                <h1 class="text-4xl font-bold text-sky-400 mb-2">국회 표결 설정</h1>
                 <p class="text-slate-400">법안명과 정당 정보를 설정한 후 시뮬레이션을 시작하세요.</p>
             </div>
             <div class="space-y-6">
@@ -432,12 +432,15 @@
                 const col1Members = this.state.members.slice(0, midIndex);
                 const col2Members = this.state.members.slice(midIndex);
 
-                const renderColumn = (members) => members.map(member => `
-                    <div class="flex items-center gap-2">
-                        <div class="vote-circle status-${member.status}"></div>
-                        <span class="text-sm truncate" title="${member.party}">${member.party}</span>
-                    </div>
-                `).join('');
+                const renderColumn = (members) => members.map(member => {
+                    const textColorClass = member.status !== 'absent' ? 'text-green-400' : '';
+                    return `
+                        <div class="flex items-center gap-2">
+                            <div class="vote-circle status-${member.status}"></div>
+                            <span class="text-xs truncate ${textColorClass}" title="${member.party}">${member.party}</span>
+                        </div>
+                    `;
+                }).join('');
 
                 this.dom.memberGridCol1.innerHTML = renderColumn(col1Members);
                 this.dom.memberGridCol2.innerHTML = renderColumn(col2Members);
