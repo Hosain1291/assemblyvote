@@ -78,7 +78,7 @@
         <!-- Screen 1: Setup -->
         <div id="setup-screen" class="screen active w-full max-w-3xl p-6 mx-auto">
             <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-sky-400 mb-2">국회 표결</h1>
+                <h1 class="text-4xl font-bold text-sky-400 mb-2">표결</h1>
                 <p class="text-slate-400">법안명과 정당 정보를 설정한 후 시뮬레이션을 시작하세요.</p>
             </div>
             <div class="space-y-6">
@@ -279,7 +279,7 @@
                 this.state.parties = [
                     { id: Date.now() + 1, name: '더불어민주당', seats: 169, stance: 'aye', defectionRate: 0.0001 },
                     { id: Date.now() + 2, name: '국민의힘', seats: 115, stance: 'nay', defectionRate: 0.0001 },
-                    { id: Date.now() + 3, name: '정의당', seats: 6, stance: 'aye', defectionRate: 0.0001 },
+                    { id: Date.now() + 3, name: '정의당', seats: 6, stance: 'boycott', defectionRate: 0.0001 },
                     { id: Date.now() + 4, name: '무소속', seats: 8, stance: 'random', defectionRate: 1.0 },
                 ];
             },
@@ -341,11 +341,19 @@
                 if (this.state.voteInProgress || this.state.members.length === 0) return;
                 this.state.voteInProgress = true;
                 
-                const attendanceRate = 0.97; // 참석률 97%로 고정
-                const presentMembers = this.state.members
+                const attendanceRate = 0.5; // 참석률 50%로 고정
+                
+                const boycottingPartyNames = this.state.parties
+                    .filter(p => p.stance === 'boycott')
+                    .map(p => p.name);
+
+                const potentialAttendees = this.state.members.filter(m => !boycottingPartyNames.includes(m.party));
+
+                const presentMembers = potentialAttendees
                     .map(m => ({ ...m, sort: Math.random() }))
                     .sort((a, b) => a.sort - b.sort)
-                    .slice(0, Math.floor(this.state.members.length * attendanceRate));
+                    .slice(0, Math.floor(potentialAttendees.length * attendanceRate));
+
 
                 let voteIndex = 0;
                 const voteInterval = setInterval(() => {
@@ -415,6 +423,7 @@
                         <select data-prop="stance" class="w-28 bg-slate-800 border border-slate-600 rounded px-2 py-1">
                             <option value="aye" ${p.stance === 'aye' ? 'selected' : ''}>찬성 당론</option>
                             <option value="nay" ${p.stance === 'nay' ? 'selected' : ''}>반대 당론</option>
+                            <option value="boycott" ${p.stance === 'boycott' ? 'selected' : ''}>표결 불참</option>
                             <option value="random" ${p.stance === 'random' ? 'selected' : ''}>자유 투표</option>
                         </select>
                         <button data-action="remove" data-id="${p.id}" class="text-red-500 hover:text-red-400 font-bold py-1 px-2 text-xl">&times;</button>
