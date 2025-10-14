@@ -341,7 +341,7 @@
                 if (this.state.voteInProgress || this.state.members.length === 0) return;
                 this.state.voteInProgress = true;
                 
-                const attendanceRate = 0.5; // 참석률 50%로 고정
+                const attendanceRate = 1.0; // 참석률 100%로 고정
                 const presentMembers = this.state.members
                     .map(m => ({ ...m, sort: Math.random() }))
                     .sort((a, b) => a.sort - b.sort)
