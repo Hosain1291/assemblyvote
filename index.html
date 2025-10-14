@@ -279,7 +279,7 @@
                 this.state.parties = [
                     { id: Date.now() + 1, name: '더불어민주당', seats: 169, stance: 'aye', defectionRate: 0.0001 },
                     { id: Date.now() + 2, name: '국민의힘', seats: 115, stance: 'nay', defectionRate: 0.0001 },
-                    { id: Date.now() + 3, name: '정의당', seats: 6, stance: 'partial_boycott', defectionRate: 0.0001 },
+                    { id: Date.now() + 3, name: '정의당', seats: 6, stance: 'partial_boycott_aye', defectionRate: 0.0001 },
                     { id: Date.now() + 4, name: '무소속', seats: 8, stance: 'random', defectionRate: 1.0 },
                 ];
             },
@@ -346,18 +346,20 @@
                 const membersToExclude = new Set();
 
                 this.state.parties.forEach(party => {
-                    const partyMembers = this.state.members.filter(m => m.party === party.name);
-                    
-                    if (party.stance === 'boycott') {
-                        partyMembers.forEach(m => membersToExclude.add(m.id));
-                    } else if (party.stance === 'partial_boycott') {
-                        const boycottRate = 0.3 + Math.random() * 0.4; // 30% ~ 70% 사이의 불참률
-                        const membersToBoycottCount = Math.floor(party.seats * boycottRate);
-                        const shuffledMembers = partyMembers.sort(() => 0.5 - Math.random());
+                    if (party.stance.includes('boycott')) {
+                        const partyMembers = this.state.members.filter(m => m.party === party.name);
                         
-                        for (let i = 0; i < membersToBoycottCount; i++) {
-                            if (shuffledMembers[i]) {
-                                membersToExclude.add(shuffledMembers[i].id);
+                        if (party.stance === 'boycott') {
+                            partyMembers.forEach(m => membersToExclude.add(m.id));
+                        } else if (party.stance.startsWith('partial_boycott')) {
+                            const boycottRate = 0.3 + Math.random() * 0.4; // 30% ~ 70% 사이의 불참률
+                            const membersToBoycottCount = Math.floor(party.seats * boycottRate);
+                            const shuffledMembers = partyMembers.sort(() => 0.5 - Math.random());
+                            
+                            for (let i = 0; i < membersToBoycottCount; i++) {
+                                if (shuffledMembers[i]) {
+                                    membersToExclude.add(shuffledMembers[i].id);
+                                }
                             }
                         }
                     }
@@ -385,13 +387,28 @@
                     if (memberToVote) {
                         const isDefector = Math.random() < memberToVote.defectionRate;
                         let vote;
-                        if (memberToVote.stance === 'random') {
+                        let votingStance = memberToVote.stance;
+
+                        // '불참' 당론에 따라 참여한 의원의 투표 방식을 결정
+                        if (votingStance === 'boycott') {
+                            // This case shouldn't happen as they are excluded, but as a fallback
+                            votingStance = 'random'; 
+                        } else if (votingStance === 'partial_boycott_random') {
+                            votingStance = 'random';
+                        } else if (votingStance === 'partial_boycott_aye') {
+                            votingStance = 'aye';
+                        } else if (votingStance === 'partial_boycott_nay') {
+                            votingStance = 'nay';
+                        }
+
+
+                        if (votingStance === 'random') {
                            const roll = Math.random();
                            if(roll < 0.45) vote = 'aye';
                            else if(roll < 0.9) vote = 'nay';
                            else vote = 'abstain';
-                        } else {
-                           vote = isDefector ? (memberToVote.stance === 'aye' ? 'nay' : 'aye') : memberToVote.stance;
+                        } else { // 'aye' or 'nay'
+                           vote = isDefector ? (votingStance === 'aye' ? 'nay' : 'aye') : votingStance;
                            if (isDefector && Math.random() < 0.3) vote = 'abstain';
                         }
                         memberToVote.status = vote;
@@ -436,11 +453,13 @@
                     <div class="party-row flex items-center gap-2" data-id="${p.id}">
                         <input data-prop="name" type="text" value="${p.name}" class="flex-grow bg-slate-800 border border-slate-600 rounded px-2 py-1">
                         <input data-prop="seats" type="number" value="${p.seats}" class="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1">
-                        <select data-prop="stance" class="w-40 bg-slate-800 border border-slate-600 rounded px-2 py-1">
+                        <select data-prop="stance" class="w-48 bg-slate-800 border border-slate-600 rounded px-2 py-1">
                             <option value="aye" ${p.stance === 'aye' ? 'selected' : ''}>찬성 당론</option>
                             <option value="nay" ${p.stance === 'nay' ? 'selected' : ''}>반대 당론</option>
                             <option value="boycott" ${p.stance === 'boycott' ? 'selected' : ''}>전원 표결 불참</option>
-                            <option value="partial_boycott" ${p.stance === 'partial_boycott' ? 'selected' : ''}>일부 표결 불참</option>
+                            <option value="partial_boycott_aye" ${p.stance === 'partial_boycott_aye' ? 'selected' : ''}>일부 불참 (찬성)</option>
+                            <option value="partial_boycott_nay" ${p.stance === 'partial_boycott_nay' ? 'selected' : ''}>일부 불참 (반대)</option>
+                            <option value="partial_boycott_random" ${p.stance === 'partial_boycott_random' ? 'selected' : ''}>일부 불참 (자유)</option>
                             <option value="random" ${p.stance === 'random' ? 'selected' : ''}>자유 투표</option>
                         </select>
                         <button data-action="remove" data-id="${p.id}" class="text-red-500 hover:text-red-400 font-bold py-1 px-2 text-xl">&times;</button>
