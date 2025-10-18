@@ -78,7 +78,7 @@
         <!-- Screen 1: Setup -->
         <div id="setup-screen" class="screen active w-full max-w-3xl p-6 mx-auto">
             <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-sky-400 mb-2">표결 시뮬레이션</h1>
+                <h1 class="text-4xl font-bold text-sky-400 mb-2">표결 시뮬레이션 설정</h1>
                 <p class="text-slate-400">법안명과 정당 정보를 설정한 후 시뮬레이션을 시작하세요.</p>
             </div>
             <div class="space-y-6">
@@ -214,7 +214,7 @@
         const app = {
             state: {
                 currentScreen: 'setup',
-                billTitle: '신행정수도 후속대책을 위한 연기·공주지역 행정중심복합도시 건설을 위한 특별법',
+                billTitle: '테스트안건건',
                 parties: [],
                 members: [],
                 voteInProgress: false,
@@ -341,7 +341,7 @@
                 if (this.state.voteInProgress || this.state.members.length === 0) return;
                 this.state.voteInProgress = true;
                 
-                const attendanceRate = 0.98; // 참석률 98%로 고정
+                const attendanceRate = 0.5; // 참석률 50%로 고정
                 
                 const membersToExclude = new Set();
 
@@ -391,7 +391,6 @@
 
                         // '불참' 당론에 따라 참여한 의원의 투표 방식을 결정
                         if (votingStance === 'boycott') {
-                            // This case shouldn't happen as they are excluded, but as a fallback
                             votingStance = 'random'; 
                         } else if (votingStance === 'partial_boycott_random') {
                             votingStance = 'random';
@@ -401,12 +400,13 @@
                             votingStance = 'nay';
                         }
 
-
                         if (votingStance === 'random') {
                            const roll = Math.random();
                            if(roll < 0.45) vote = 'aye';
                            else if(roll < 0.9) vote = 'nay';
                            else vote = 'abstain';
+                        } else if (votingStance === 'abstain') {
+                            vote = isDefector ? (Math.random() < 0.5 ? 'aye' : 'nay') : 'abstain';
                         } else { // 'aye' or 'nay'
                            vote = isDefector ? (votingStance === 'aye' ? 'nay' : 'aye') : votingStance;
                            if (isDefector && Math.random() < 0.3) vote = 'abstain';
@@ -456,6 +456,7 @@
                         <select data-prop="stance" class="w-48 bg-slate-800 border border-slate-600 rounded px-2 py-1">
                             <option value="aye" ${p.stance === 'aye' ? 'selected' : ''}>찬성 당론</option>
                             <option value="nay" ${p.stance === 'nay' ? 'selected' : ''}>반대 당론</option>
+                            <option value="abstain" ${p.stance === 'abstain' ? 'selected' : ''}>기권 당론</option>
                             <option value="boycott" ${p.stance === 'boycott' ? 'selected' : ''}>전원 표결 불참</option>
                             <option value="partial_boycott_aye" ${p.stance === 'partial_boycott_aye' ? 'selected' : ''}>일부 불참 (찬성)</option>
                             <option value="partial_boycott_nay" ${p.stance === 'partial_boycott_nay' ? 'selected' : ''}>일부 불참 (반대)</option>
