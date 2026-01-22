@@ -112,6 +112,23 @@
             max-width: 400px;
             margin: auto;
         }
+        /* Dropdown transition */
+        #export-dropdown {
+            transition: all 0.2s ease-in-out;
+            transform-origin: top right;
+        }
+        #export-dropdown.hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+            display: block; /* keep layout but hide visually to animate */
+            visibility: hidden;
+        }
+        #export-dropdown:not(.hidden) {
+            opacity: 1;
+            transform: scale(1);
+            visibility: visible;
+        }
     </style>
 </head>
 <body class="text-gray-200">
@@ -141,10 +158,24 @@
                     <div id="party-list-editor" class="space-y-2 mb-4 bg-slate-900 p-4 rounded-lg border border-slate-700 max-h-60 overflow-y-auto">
                         <!-- Party editor rows go here -->
                     </div>
-                    <div class="flex justify-end gap-2">
+                    <div class="flex justify-end gap-2 items-start">
                          <input type="file" id="party-file-input" accept=".csv,.txt" class="hidden">
                          <button id="import-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">📂 파일 불러오기</button>
-                         <button id="export-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">💾 목록 저장</button>
+                         
+                         <!-- Export Dropdown -->
+                         <div class="relative inline-block text-left">
+                            <button id="export-menu-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm flex items-center">
+                                💾 목록 저장
+                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                                <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                                    <button id="export-txt-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">TXT로 저장</button>
+                                    <button id="export-csv-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">CSV로 저장</button>
+                                </div>
+                            </div>
+                         </div>
+
                          <button id="add-party-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition">+ 정당 추가</button>
                     </div>
                 </div>
@@ -267,7 +298,7 @@
         const app = {
             state: {
                 currentScreen: 'setup',
-                billTitle: '신행정수도 후속대책을 위한 연기·공주지역 행정중심복합도시 건설을 위한 특별법',
+                billTitle: '테스트 안건',
                 parties: [],
                 members: [],
                 voteInProgress: false,
@@ -295,7 +326,10 @@
                     partyListEditor: document.getElementById('party-list-editor'),
                     addPartyBtn: document.getElementById('add-party-btn'),
                     importBtn: document.getElementById('import-btn'),
-                    exportBtn: document.getElementById('export-btn'),
+                    exportMenuBtn: document.getElementById('export-menu-btn'),
+                    exportDropdown: document.getElementById('export-dropdown'),
+                    exportTxtBtn: document.getElementById('export-txt-btn'),
+                    exportCsvBtn: document.getElementById('export-csv-btn'),
                     partyFileInput: document.getElementById('party-file-input'),
                     startSimulationBtn: document.getElementById('start-simulation-btn'),
                     restartBtn: document.getElementById('restart-btn'),
@@ -325,7 +359,29 @@
             bindEvents() {
                 this.dom.addPartyBtn.addEventListener('click', () => this.addParty());
                 this.dom.importBtn.addEventListener('click', () => this.dom.partyFileInput.click());
-                this.dom.exportBtn.addEventListener('click', () => this.exportParties());
+                
+                // Export Menu Logic
+                this.dom.exportMenuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.dom.exportDropdown.classList.toggle('hidden');
+                });
+                this.dom.exportTxtBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.exportParties('txt');
+                    this.dom.exportDropdown.classList.add('hidden');
+                });
+                this.dom.exportCsvBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.exportParties('csv');
+                    this.dom.exportDropdown.classList.add('hidden');
+                });
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!this.dom.exportMenuBtn.contains(e.target) && !this.dom.exportDropdown.contains(e.target)) {
+                        this.dom.exportDropdown.classList.add('hidden');
+                    }
+                });
+
                 this.dom.partyFileInput.addEventListener('change', (e) => this.handleFileUpload(e));
                 this.dom.partyListEditor.addEventListener('click', (e) => {
                     if (e.target.dataset.action === 'remove') this.removeParty(e.target.dataset.id);
@@ -369,17 +425,20 @@
                 this.renderPartyEditor();
             },
 
-            exportParties() {
+            exportParties(format) {
                 this.updatePartiesFromDOM();
-                const csvContent = this.state.parties.map(p =>
+                const content = this.state.parties.map(p =>
                     `${p.name}, ${p.seats}, ${p.stance}, ${p.defectionRate}`
                 ).join('\n');
 
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const mimeType = format === 'csv' ? 'text/csv' : 'text/plain';
+                const extension = format === 'csv' ? 'csv' : 'txt';
+
+                const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.setAttribute('href', url);
-                link.setAttribute('download', 'party_list.csv');
+                link.setAttribute('download', `party_list.${extension}`);
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
@@ -486,7 +545,7 @@
                 if (this.state.voteInProgress || this.state.members.length === 0) return;
                 this.state.voteInProgress = true;
                 
-                const attendanceRate = 0.5;
+                const attendanceRate = 1.0; // 참석률 100%로 고정
                 
                 const membersToExclude = new Set();
 
