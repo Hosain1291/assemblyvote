@@ -9,27 +9,70 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         @font-face {
-            font-family: 'NexonLv1Gothic';
-            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/NEXON Lv1 Gothic OTF Light.woff') format('woff');
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Thin.woff2') format('woff2');
+            font-weight: 100;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraLight.woff2') format('woff2');
+            font-weight: 200;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Light.woff2') format('woff2');
             font-weight: 300;
             font-display: swap;
         }
 
         @font-face {
-            font-family: 'NexonLv1Gothic';
-            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/NEXON Lv1 Gothic OTF.woff') format('woff');
-            font-weight: normal;
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2');
+            font-weight: 400;
             font-display: swap;
         }
 
         @font-face {
-            font-family: 'NexonLv1Gothic';
-            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/NEXON Lv1 Gothic OTF Bold.woff') format('woff');
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Bold.woff2') format('woff2');
             font-weight: 700;
             font-display: swap;
         }
+
+        @font-face {
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Black.woff2') format('woff2');
+            font-weight: 900;
+            font-display: swap;
+        }
+
         body {
-            font-family: 'NexonLv1Gothic', 'Noto Sans KR', sans-serif;
+            font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
             background-color: #000;
         }
         .vote-grid {
@@ -87,11 +130,21 @@
                     <textarea id="bill-title-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none h-24 resize-none"></textarea>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-2">정당 및 의석수</h3>
-                    <div id="party-list-editor" class="space-y-2 mb-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <div class="flex justify-between items-end mb-2">
+                        <h3 class="text-lg font-semibold">정당 및 의석수</h3>
+                        <p class="text-xs text-gray-500 text-right">
+                            파일 형식: 정당명, 의석수, 당론코드, 이탈률<br>
+                            (당론코드: aye, nay, abstain, boycott, partial_boycott_aye 등)
+                        </p>
+                    </div>
+                    
+                    <div id="party-list-editor" class="space-y-2 mb-4 bg-slate-900 p-4 rounded-lg border border-slate-700 max-h-60 overflow-y-auto">
                         <!-- Party editor rows go here -->
                     </div>
-                    <div class="flex justify-end">
+                    <div class="flex justify-end gap-2">
+                         <input type="file" id="party-file-input" accept=".csv,.txt" class="hidden">
+                         <button id="import-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">📂 파일 불러오기</button>
+                         <button id="export-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">💾 목록 저장</button>
                          <button id="add-party-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition">+ 정당 추가</button>
                     </div>
                 </div>
@@ -214,7 +267,7 @@
         const app = {
             state: {
                 currentScreen: 'setup',
-                billTitle: '테스트안건건',
+                billTitle: '신행정수도 후속대책을 위한 연기·공주지역 행정중심복합도시 건설을 위한 특별법',
                 parties: [],
                 members: [],
                 voteInProgress: false,
@@ -241,6 +294,9 @@
                     announcementTitle: document.getElementById('announcement-title'),
                     partyListEditor: document.getElementById('party-list-editor'),
                     addPartyBtn: document.getElementById('add-party-btn'),
+                    importBtn: document.getElementById('import-btn'),
+                    exportBtn: document.getElementById('export-btn'),
+                    partyFileInput: document.getElementById('party-file-input'),
                     startSimulationBtn: document.getElementById('start-simulation-btn'),
                     restartBtn: document.getElementById('restart-btn'),
                     displayBillTitle: document.getElementById('display-bill-title'),
@@ -268,6 +324,9 @@
 
             bindEvents() {
                 this.dom.addPartyBtn.addEventListener('click', () => this.addParty());
+                this.dom.importBtn.addEventListener('click', () => this.dom.partyFileInput.click());
+                this.dom.exportBtn.addEventListener('click', () => this.exportParties());
+                this.dom.partyFileInput.addEventListener('change', (e) => this.handleFileUpload(e));
                 this.dom.partyListEditor.addEventListener('click', (e) => {
                     if (e.target.dataset.action === 'remove') this.removeParty(e.target.dataset.id);
                 });
@@ -284,7 +343,6 @@
                 ];
             },
 
-            // Helper function to save current editor values to state
             updatePartiesFromDOM() {
                 this.dom.partyListEditor.querySelectorAll('.party-row').forEach(row => {
                     const id = row.dataset.id;
@@ -298,7 +356,7 @@
             },
             
             addParty() {
-                this.updatePartiesFromDOM(); // Save current edits before re-rendering
+                this.updatePartiesFromDOM();
                 this.state.parties.push({
                     id: Date.now(), name: '새 정당', seats: 1, stance: 'aye', defectionRate: 0.0001,
                 });
@@ -306,13 +364,100 @@
             },
             
             removeParty(id) {
-                this.updatePartiesFromDOM(); // Save current edits before re-rendering
+                this.updatePartiesFromDOM();
                 this.state.parties = this.state.parties.filter(p => p.id != id);
                 this.renderPartyEditor();
             },
 
+            exportParties() {
+                this.updatePartiesFromDOM();
+                const csvContent = this.state.parties.map(p =>
+                    `${p.name}, ${p.seats}, ${p.stance}, ${p.defectionRate}`
+                ).join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'party_list.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const content = e.target.result;
+                        const lines = content.split(/\r?\n/);
+                        const newParties = [];
+                        
+                        lines.forEach((line, index) => {
+                            if (!line.trim()) return;
+                            const parts = line.split(',');
+                            if (parts.length >= 2) {
+                                const name = parts[0].trim();
+                                const seats = parseInt(parts[1].trim());
+                                let stance = 'random';
+                                let defectionRate = 0.0001;
+
+                                if (parts.length >= 3) {
+                                    const stanceCode = parts[2].trim().toLowerCase();
+                                    const validStances = [
+                                        'aye', 'nay', 'abstain', 'boycott',
+                                        'partial_boycott_aye', 'partial_boycott_nay', 
+                                        'partial_boycott_random', 'random'
+                                    ];
+                                    
+                                    if (validStances.includes(stanceCode)) {
+                                        stance = stanceCode;
+                                    } else if (stanceCode === '찬성') stance = 'aye';
+                                    else if (stanceCode === '반대') stance = 'nay';
+                                    else if (stanceCode === '기권') stance = 'abstain';
+                                    else if (stanceCode === '불참' || stanceCode === '전원불참') stance = 'boycott';
+                                    else if (stanceCode === '자유') stance = 'random';
+                                }
+
+                                if (parts.length >= 4) {
+                                    const rate = parseFloat(parts[3].trim());
+                                    if (!isNaN(rate)) defectionRate = rate;
+                                }
+
+                                if (name && !isNaN(seats)) {
+                                    newParties.push({
+                                        id: Date.now() + index,
+                                        name,
+                                        seats,
+                                        stance,
+                                        defectionRate
+                                    });
+                                }
+                            }
+                        });
+
+                        if (newParties.length > 0) {
+                            this.state.parties = newParties;
+                            this.renderPartyEditor();
+                            alert(`${newParties.length}개 정당 정보를 불러왔습니다.`);
+                        } else {
+                            alert('파일에서 유효한 정당 정보를 찾을 수 없습니다.');
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        alert('파일 읽기 중 오류가 발생했습니다.');
+                    }
+                    this.dom.partyFileInput.value = '';
+                };
+                reader.readAsText(file);
+            },
+
             startSimulation() {
-                this.updatePartiesFromDOM(); // Also save when starting simulation
+                this.updatePartiesFromDOM();
                 this.state.billTitle = this.dom.billTitleInput.value;
                 
                 this.generateMembers();
@@ -341,7 +486,7 @@
                 if (this.state.voteInProgress || this.state.members.length === 0) return;
                 this.state.voteInProgress = true;
                 
-                const attendanceRate = 0.995; // 참석률 99.5%로 고정
+                const attendanceRate = 0.5;
                 
                 const membersToExclude = new Set();
 
@@ -352,7 +497,7 @@
                         if (party.stance === 'boycott') {
                             partyMembers.forEach(m => membersToExclude.add(m.id));
                         } else if (party.stance.startsWith('partial_boycott')) {
-                            const boycottRate = 0.3 + Math.random() * 0.4; // 30% ~ 70% 사이의 불참률
+                            const boycottRate = 0.3 + Math.random() * 0.4;
                             const membersToBoycottCount = Math.floor(party.seats * boycottRate);
                             const shuffledMembers = partyMembers.sort(() => 0.5 - Math.random());
                             
@@ -378,7 +523,6 @@
                     if (voteIndex >= presentMembers.length) {
                         clearInterval(voteInterval);
                         this.state.voteInProgress = false;
-                        // 투표 종료 후 결과 화면으로 넘어가기 전 5초 지연
                         setTimeout(() => this.showResults(), 5000);
                         return;
                     }
@@ -389,7 +533,6 @@
                         let vote;
                         let votingStance = memberToVote.stance;
 
-                        // '불참' 당론에 따라 참여한 의원의 투표 방식을 결정
                         if (votingStance === 'boycott') {
                             votingStance = 'random'; 
                         } else if (votingStance === 'partial_boycott_random') {
@@ -407,7 +550,7 @@
                            else vote = 'abstain';
                         } else if (votingStance === 'abstain') {
                             vote = isDefector ? (Math.random() < 0.5 ? 'aye' : 'nay') : 'abstain';
-                        } else { // 'aye' or 'nay'
+                        } else { 
                            vote = isDefector ? (votingStance === 'aye' ? 'nay' : 'aye') : votingStance;
                            if (isDefector && Math.random() < 0.3) vote = 'abstain';
                         }
@@ -567,4 +710,3 @@
     </script>
 </body>
 </html>
-
