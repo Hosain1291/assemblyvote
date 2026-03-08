@@ -178,7 +178,7 @@
                     <h1 id="display-bill-title" class="text-2xl sm:text-3xl font-bold text-sky-400"></h1>
                 </header>
                 
-                <!-- 한국식 (KR) 상단 보드 (실제 국회 스타일) -->
+                <!-- 한국식 (KR) 상단 보드 -->
                 <div id="kr-header" class="hidden w-full flex-col mb-4">
                     <div class="text-xl sm:text-2xl text-white font-bold mb-3 text-left pl-2" id="kr-bill-title-display"></div>
                     <div class="flex w-full border border-blue-800 bg-[#151a28] text-sm sm:text-lg font-medium shadow-md">
@@ -451,20 +451,11 @@
     </div>
 
     <script type="module">
-        // 가상의 의원 이름 생성기
-        const kLast = "김이박최정강조윤장임한오서신권황안송전홍유고문양손배조백허유남심노정하곽성차주우구신임나전민유진지엄채원천방공강현함변염양변여추노도소신석선설마길주연방위표명기반왕금옥육인맹제모장남탁국여진어은편구용";
-        const kFirst = "준서도윤하은지우호수현진건민영재훈석동태성승원철환규상종기명희숙미정경순연선아혜화효설소솔예빛별들봄찬솔슬샘람보";
-        function genName() {
-            return kLast[Math.floor(Math.random() * kLast.length)] + 
-                   kFirst[Math.floor(Math.random() * kFirst.length)] + 
-                   kFirst[Math.floor(Math.random() * kFirst.length)];
-        }
-
         const app = {
             state: {
                 currentScreen: 'setup',
                 theme: 'kr', // 'kr', 'ua', 'cn', 'ru', 'fi', 'hu'
-                billTitle: '1. 상법 일부개정법률안',
+                billTitle: '1. 테스트',
                 parties: [],
                 members: [],
                 voteInProgress: false,
@@ -795,14 +786,10 @@
             generateMembers() {
                 this.state.members = [];
                 this.state.parties.forEach(party => {
-                    let shortParty = party.name.length > 2 ? party.name.substring(0, 2) : party.name;
-                    
                     for (let i = 1; i <= party.seats; i++) {
                         this.state.members.push({
                             id: `${party.id}-${i}`, 
                             party: party.name, 
-                            shortParty: shortParty,
-                            name: genName(), // 진짜 같은 랜덤 이름 부여
                             stance: party.stance,
                             defectionRate: party.defectionRate, 
                             status: 'absent',
@@ -958,7 +945,7 @@
                         if(member.status === 'abstain') inlineStyle = 'color: var(--color-abstain);';
                         
                         return `
-                        <div class="flex items-center gap-1.5 justify-start overflow-hidden" title="${member.name}">
+                        <div class="flex items-center gap-1.5 justify-start overflow-hidden">
                             <div class="vote-circle status-${member.status}"></div>
                             <span class="text-[14px] font-bold truncate ${tc}" style="${inlineStyle}">${member.party}</span>
                         </div>`;
@@ -983,20 +970,17 @@
                         if(member.status === 'nay') hi = 'color: var(--color-nay);';
                         if(member.status === 'abstain') hi = 'color: var(--color-abstain);';
                         
-                        return `<div class="flex items-center gap-1.5 overflow-hidden" title="${member.name}"><div class="vote-circle status-${member.status}"></div><span class="text-xs truncate ${tc}">${member.party}</span><span class="text-[10px] whitespace-nowrap opacity-90" style="${hi}">(${statusTextMap[member.status]})</span></div>`;
+                        return `<div class="flex items-center gap-1.5 overflow-hidden"><div class="vote-circle status-${member.status}"></div><span class="text-xs truncate ${tc}">${member.party}</span><span class="text-[10px] whitespace-nowrap opacity-90" style="${hi}">(${statusTextMap[member.status]})</span></div>`;
                     }).join('');
 
                     const midIndex = Math.ceil(total / 2);
                     this.dom.memberGridCol1.innerHTML = renderUaColumn(this.state.members.slice(0, midIndex));
                     this.dom.memberGridCol2.innerHTML = renderUaColumn(this.state.members.slice(midIndex));
                 } 
-                else if (this.state.theme === 'cn' || this.state.theme === 'ru' || this.state.theme === 'fi' || this.state.theme === 'hu') {
-                    // 대기 중에는 숫자를 고정하거나 빈칸 처리
-                    if (this.state.theme === 'cn') {
-                        this.dom.cnCounts.aye.textContent = '0';
-                        this.dom.cnCounts.nay.textContent = '0';
-                        this.dom.cnCounts.abstain.textContent = '0';
-                    }
+                else if (this.state.theme === 'cn') {
+                    this.dom.cnCounts.aye.textContent = '0';
+                    this.dom.cnCounts.nay.textContent = '0';
+                    this.dom.cnCounts.abstain.textContent = '0';
                 }
             },
 
