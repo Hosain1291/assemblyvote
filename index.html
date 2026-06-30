@@ -19,26 +19,23 @@
         }
 
         :root {
-            --color-aye: #00ff00; /* 대한민국 국회식 형광녹색 */
+            --color-aye: #00ff00;
             --color-nay: #ff4444;
             --color-abstain: #ffcc00;
         }
         
-        /* 기본 그리드 설정 */
         .vote-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 10px 6px;
         }
 
-        /* 한국 테마 전용 밀집 그리드 (사진처럼 꽉 차게) */
         .kr-vote-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
             gap: 8px 4px;
         }
 
-        /* 한국 스타일 인디케이터 (원형) */
         .vote-circle {
             width: 10px;
             height: 10px;
@@ -47,7 +44,6 @@
             margin-top: 1px;
         }
 
-        /* 우크라이나 스타일 인디케이터 (직사각형) */
         .theme-ua .vote-circle {
             width: 16px;
             height: 10px;
@@ -55,13 +51,11 @@
             margin-top: 2px;
         }
 
-        /* 상태별 색상 (공통/한국) */
         .status-aye { background-color: var(--color-aye); } 
         .status-nay { background-color: var(--color-nay); } 
         .status-abstain { background-color: var(--color-abstain); } 
         .status-absent { background-color: #374151; } 
         
-        /* 우크라이나 테마 특화 색상 */
         .theme-ua .status-absent { background-color: #e5e7eb; border: 1px solid #9ca3af; }
 
         .screen { display: none; }
@@ -76,15 +70,13 @@
         #export-dropdown.hidden { opacity: 0; transform: scale(0.95); pointer-events: none; visibility: hidden; display: block; }
         #export-dropdown:not(.hidden) { opacity: 1; transform: scale(1); visibility: visible; }
         
-        /* 특화 폰트 */
         .ua-digital-num { font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: 1.5rem; }
         .cn-digital-text { font-family: 'SimHei', 'Microsoft YaHei', sans-serif; }
         .fi-digital { font-family: 'Courier New', Courier, monospace; font-weight: bold; text-shadow: 0 0 5px rgba(250, 204, 21, 0.5); }
-        
-        /* 러시아 점선 리더 */
+        .ge-digital-num { font-family: 'Courier New', Courier, monospace; font-weight: bold; text-shadow: 0 0 8px rgba(255, 255, 255, 0.3); }
+
         .ru-dotted-leader { flex-grow: 1; border-bottom: 4px dotted white; margin: 0 16px; position: relative; top: -12px; opacity: 0.8; }
 
-        /* 헝가리 테마 스타일 */
         .hu-board-bg { background: linear-gradient(155deg, #ba4b63 25%, #95b3e8 45%, #95b3e8 55%, #4b7875 75%); }
         .hu-text { color: #a4ebff; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
     </style>
@@ -112,8 +104,9 @@
                         <option value="ua">🇺🇦 우크라이나 최고 라다 스타일 (분할 보드, 사각 표시)</option>
                         <option value="cn">🇨🇳 중국 전국인민대표대회 스타일 (파란 전광판, 집계 중심)</option>
                         <option value="ru">🇷🇺 러시아 국가두마 스타일 (가결 파랑/부결 빨강)</option>
-                        <option value="fi">🇫🇮 핀란드 의회 스타일 (클래식 보드, JAA/EI)</option>
-                        <option value="hu">🇭🇺 헝가리 의회 스타일 (물결 배경 보드)</option>
+                        <option value="fi">🇫🇮 핀란드 의회 스타일 (클래식 보드, 즉시 최종 표시)</option>
+                        <option value="hu">🇭🇺 헝가리 의회 스타일 (물결 배경 보드, 즉시 최종 표시)</option>
+                        <option value="ge">🇬🇪 조지아 국회 스타일 (차트형 실시간 성장 전광판)</option>
                     </select>
                 </div>
 
@@ -155,7 +148,7 @@
                             <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
                                 <div class="py-1" role="menu">
                                     <button id="export-txt-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">TXT로 저장</button>
-                                    <button id="export-csv-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">CSV로 저장</button>
+                                    <button id="export-csv-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">CSV로 저장(엑셀안깨짐)</button>
                                 </div>
                             </div>
                          </div>
@@ -173,165 +166,252 @@
 
         <!-- Screen 2: Voting -->
         <div id="voting-screen" class="screen max-w-screen-2xl mx-auto w-full h-full p-4">
-            <div id="voting-container" class="bg-gray-900/80 border border-gray-700 p-4 sm:p-6 rounded-lg shadow-2xl shadow-sky-500/10 w-full h-full flex flex-col">
-                <header id="display-bill-title-container" class="text-center mb-4">
-                    <h1 id="display-bill-title" class="text-2xl sm:text-3xl font-bold text-sky-400"></h1>
-                </header>
-                
-                <!-- 한국식 (KR) 상단 보드 -->
-                <div id="kr-header" class="hidden w-full flex-col mb-4">
-                    <div class="text-xl sm:text-2xl text-white font-bold mb-3 text-left pl-2" id="kr-bill-title-display"></div>
-                    <div class="flex w-full border border-blue-800 bg-[#151a28] text-sm sm:text-lg font-medium shadow-md">
-                        <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2">
-                            <span class="text-gray-300">재적:</span> <span id="kr-count-total" class="font-bold text-white">0</span><span class="text-gray-300"> 인</span>
-                        </div>
-                        <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2">
-                            <span class="text-gray-300">재석:</span> <span id="kr-count-present" class="font-bold text-white">0</span><span class="text-gray-300"> 인</span>
-                        </div>
-                        <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2" style="color: var(--color-aye)">
-                            <span>찬성:</span> <span id="kr-count-aye" class="font-bold">0</span><span> 인</span>
-                        </div>
-                        <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2" style="color: var(--color-nay)">
-                            <span>반대:</span> <span id="kr-count-nay" class="font-bold">0</span><span> 인</span>
-                        </div>
-                        <div class="flex-1 py-3 text-center flex justify-center items-center gap-2" style="color: var(--color-abstain)">
-                            <span>기권:</span> <span id="kr-count-abstain" class="font-bold">0</span><span> 인</span>
+            <div id="voting-container" class="bg-gray-900/80 border border-gray-700 p-4 sm:p-6 rounded-lg shadow-2xl shadow-sky-500/10 w-full h-full flex flex-col justify-between">
+                <div>
+                    <header id="display-bill-title-container" class="text-center mb-4">
+                        <h1 id="display-bill-title" class="text-2xl sm:text-3xl font-bold text-sky-400"></h1>
+                    </header>
+                    
+                    <!-- 한국식 (KR) 상단 보드 -->
+                    <div id="kr-header" class="hidden w-full flex-col mb-4">
+                        <div class="text-xl sm:text-2xl text-white font-bold mb-3 text-left pl-2" id="kr-bill-title-display"></div>
+                        <div class="flex w-full border border-blue-800 bg-[#151a28] text-sm sm:text-lg font-medium shadow-md">
+                            <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2">
+                                <span class="text-gray-300">재적:</span> <span id="kr-count-total" class="font-bold text-white">0</span><span class="text-gray-300"> 인</span>
+                            </div>
+                            <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2">
+                                <span class="text-gray-300">재석:</span> <span id="kr-count-present" class="font-bold text-white">0</span><span class="text-gray-300"> 인</span>
+                            </div>
+                            <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2" style="color: var(--color-aye)">
+                                <span>찬성:</span> <span id="kr-count-aye" class="font-bold">0</span><span> 인</span>
+                            </div>
+                            <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2" style="color: var(--color-nay)">
+                                <span>반대:</span> <span id="kr-count-nay" class="font-bold">0</span><span> 인</span>
+                            </div>
+                            <div class="flex-1 py-3 text-center flex justify-center items-center gap-2" style="color: var(--color-abstain)">
+                                <span>기권:</span> <span id="kr-count-abstain" class="font-bold">0</span><span> 인</span>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- 우크라이나식 (UA) 상단 보드 -->
-                <div id="ua-header" class="hidden w-full grid-cols-5 gap-2 bg-[#001530] border-2 border-blue-800 p-3 rounded-md text-center mb-4 uppercase font-bold tracking-wider">
-                    <div class="bg-[#002b5e] p-2 rounded border border-blue-700">
-                        <div class="text-xs text-blue-300 mb-1">재적 (Всього)</div>
-                        <div id="ua-count-total" class="ua-digital-num text-white">0</div>
+                    <!-- 우크라이나식 (UA) 상단 보드 -->
+                    <div id="ua-header" class="hidden w-full grid-cols-5 gap-2 bg-[#001530] border-2 border-blue-800 p-3 rounded-md text-center mb-4 uppercase font-bold tracking-wider">
+                        <div class="bg-[#002b5e] p-2 rounded border border-blue-700">
+                            <div class="text-xs text-blue-300 mb-1">재적 (Всього)</div>
+                            <div id="ua-count-total" class="ua-digital-num text-white">0</div>
+                        </div>
+                        <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-aye) 20%, transparent); border-color: var(--color-aye);">
+                            <div class="text-xs mb-1" style="color: var(--color-aye)">찬성 (ЗА)</div>
+                            <div id="ua-count-aye" class="ua-digital-num" style="color: var(--color-aye)">0</div>
+                        </div>
+                        <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-nay) 20%, transparent); border-color: var(--color-nay);">
+                            <div class="text-xs mb-1" style="color: var(--color-nay)">반대 (ПРОТИ)</div>
+                            <div id="ua-count-nay" class="ua-digital-num" style="color: var(--color-nay)">0</div>
+                        </div>
+                        <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-abstain) 20%, transparent); border-color: var(--color-abstain);">
+                            <div class="text-xs mb-1" style="color: var(--color-abstain)">기권 (УТРИМ.)</div>
+                            <div id="ua-count-abstain" class="ua-digital-num" style="color: var(--color-abstain)">0</div>
+                        </div>
+                        <div class="bg-gray-800 p-2 rounded border border-gray-600">
+                            <div class="text-xs text-gray-400 mb-1">미투표 (НЕ ГОЛ.)</div>
+                            <div id="ua-count-absent" class="ua-digital-num text-gray-300">0</div>
+                        </div>
                     </div>
-                    <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-aye) 20%, transparent); border-color: var(--color-aye);">
-                        <div class="text-xs mb-1" style="color: var(--color-aye)">찬성 (ЗА)</div>
-                        <div id="ua-count-aye" class="ua-digital-num" style="color: var(--color-aye)">0</div>
-                    </div>
-                    <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-nay) 20%, transparent); border-color: var(--color-nay);">
-                        <div class="text-xs mb-1" style="color: var(--color-nay)">반대 (ПРОТИ)</div>
-                        <div id="ua-count-nay" class="ua-digital-num" style="color: var(--color-nay)">0</div>
-                    </div>
-                    <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-abstain) 20%, transparent); border-color: var(--color-abstain);">
-                        <div class="text-xs mb-1" style="color: var(--color-abstain)">기권 (УТРИМ.)</div>
-                        <div id="ua-count-abstain" class="ua-digital-num" style="color: var(--color-abstain)">0</div>
-                    </div>
-                    <div class="bg-gray-800 p-2 rounded border border-gray-600">
-                        <div class="text-xs text-gray-400 mb-1">미투표 (НЕ ГОЛ.)</div>
-                        <div id="ua-count-absent" class="ua-digital-num text-gray-300">0</div>
-                    </div>
-                </div>
 
-                <!-- 중국식 (CN) 전체 보드 -->
-                <div id="cn-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#001bc2] p-8 sm:p-12 rounded shadow-inner border-[12px] border-[#d4d4d4]">
-                    <h2 id="cn-display-bill-title" class="text-4xl sm:text-6xl font-normal text-white mb-16 sm:mb-24 text-center break-keep leading-tight cn-digital-text tracking-widest"></h2>
-                    <div class="text-4xl sm:text-7xl space-y-12 sm:space-y-20 w-full max-w-4xl cn-digital-text text-white font-normal">
-                        <div class="flex items-center">
-                            <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">赞成</span>
-                            <span id="cn-count-aye" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                            <span class="w-1/6 text-left">票</span>
-                        </div>
-                        <div class="flex items-center">
-                            <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">反对</span>
-                            <span id="cn-count-nay" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                            <span class="w-1/6 text-left">票</span>
-                        </div>
-                        <div class="flex items-center">
-                            <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">弃权</span>
-                            <span id="cn-count-abstain" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                            <span class="w-1/6 text-left">票</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 러시아식 (RU) 대기 화면 -->
-                <div id="ru-board" class="hidden flex-col items-center justify-center h-full w-full rounded-lg shadow-inner border-4 border-gray-700 bg-black">
-                    <div class="text-4xl text-white font-bold animate-pulse">Голосование... (투표 진행 중)</div>
-                </div>
-
-                <!-- 핀란드식 (FI) 전광판 -->
-                <div id="fi-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#5f6f7a] p-4 sm:p-12 rounded-lg shadow-inner">
-                    <div class="w-full max-w-[650px] bg-[#788896] border-[14px] border-[#b8955e] p-3 sm:p-5 flex relative rounded-sm shadow-2xl" style="box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.8);">
-                        <div class="absolute inset-0 border border-[#4a3b22] m-[2px] pointer-events-none"></div>
-                        <div class="flex flex-col justify-around flex-grow py-4 pl-4 pr-6 z-10">
-                            <div class="flex justify-between items-center h-[70px] sm:h-[90px]">
-                                <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">JAA</div>
-                                <div class="text-[#d4b068] text-xl sm:text-3xl">❂</div>
-                            </div>
-                            <div class="flex justify-between items-center h-[70px] sm:h-[90px]">
-                                <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">EI</div>
-                                <div class="text-[#d4b068] text-xl sm:text-3xl flex gap-3"><span>❂</span><span>❂</span></div>
-                            </div>
-                            <div class="flex items-center h-[70px] sm:h-[90px]">
-                                <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">TYHJIÄ</div>
-                            </div>
-                            <div class="flex items-center h-[70px] sm:h-[90px]">
-                                <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">POISSA</div>
-                            </div>
-                        </div>
-                        <div class="flex flex-col z-10 bg-[#b8955e] p-1.5 gap-1.5 border-2 border-[#8a683a] rounded-sm shadow-md">
-                            <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
-                                <span id="fi-count-aye" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider"></span>
-                            </div>
-                            <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
-                                <span id="fi-count-nay" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider"></span>
-                            </div>
-                            <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
-                                <span id="fi-count-abstain" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider"></span>
-                            </div>
-                            <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
-                                <span id="fi-count-absent" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 헝가리식 (HU) 전광판 -->
-                <div id="hu-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#1a1a1a] p-4 sm:p-12 rounded-lg shadow-inner">
-                    <div class="w-full max-w-[850px] hu-board-bg border-[14px] border-[#cda434] p-8 sm:p-12 flex flex-col relative rounded-sm shadow-2xl">
-                        <div class="absolute inset-0 border-[4px] border-[#222] pointer-events-none"></div>
-                        <div class="absolute inset-[4px] border-[2px] border-[#e8c355] pointer-events-none opacity-60"></div>
-                        
-                        <div class="flex flex-col z-10 hu-text text-3xl sm:text-5xl font-sans tracking-wide space-y-5">
+                    <!-- 중국식 (CN) 전체 전광판 -->
+                    <div id="cn-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#001bc2] p-8 sm:p-12 rounded shadow-inner border-[12px] border-[#d4d4d4]">
+                        <h2 id="cn-display-bill-title" class="text-4xl sm:text-6xl font-normal text-white mb-16 sm:mb-24 text-center break-keep leading-tight cn-digital-text tracking-widest"></h2>
+                        <div class="text-4xl sm:text-7xl space-y-12 sm:space-y-20 w-full max-w-4xl cn-digital-text text-white font-normal">
                             <div class="flex items-center">
-                                <span class="w-[45%]">Igen:</span>
-                                <span id="hu-res-aye" class="w-[20%] text-right font-light"></span>
-                                <span id="hu-res-aye-pct" class="w-[35%] text-right font-light"></span>
+                                <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">赞成</span>
+                                <span id="cn-count-aye" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
+                                <span class="w-1/6 text-left">票</span>
                             </div>
                             <div class="flex items-center">
-                                <span class="w-[45%]">Nem:</span>
-                                <span id="hu-res-nay" class="w-[20%] text-right font-light"></span>
-                                <span id="hu-res-nay-pct" class="w-[35%] text-right font-light"></span>
+                                <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">反对</span>
+                                <span id="cn-count-nay" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
+                                <span class="w-1/6 text-left">票</span>
                             </div>
                             <div class="flex items-center">
-                                <span class="w-[45%]">Tartózkodott:</span>
-                                <span id="hu-res-abstain" class="w-[20%] text-right font-light"></span>
-                                <span id="hu-res-abstain-pct" class="w-[35%] text-right font-light"></span>
+                                <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">弃权</span>
+                                <span id="cn-count-abstain" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
+                                <span class="w-1/6 text-left">票</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- 러시아식 (RU) 대기 화면 -->
+                    <div id="ru-board" class="hidden flex-col items-center justify-center h-full w-full rounded-lg shadow-inner border-4 border-gray-700 bg-black">
+                        <div class="text-4xl text-white font-bold animate-pulse">Голосование... (투표 진행 중)</div>
+                    </div>
+
+                    <!-- 핀란드식 (FI) 전광판 -->
+                    <div id="fi-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#5f6f7a] p-4 sm:p-12 rounded-lg shadow-inner">
+                        <div class="w-full max-w-[650px] bg-[#788896] border-[14px] border-[#b8955e] p-3 sm:p-5 flex relative rounded-sm shadow-2xl" style="box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.8);">
+                            <div class="absolute inset-0 border border-[#4a3b22] m-[2px] pointer-events-none"></div>
+                            <div class="flex flex-col justify-around flex-grow py-4 pl-4 pr-6 z-10">
+                                <div class="flex justify-between items-center h-[70px] sm:h-[90px]">
+                                    <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">JAA</div>
+                                    <div class="text-[#d4b068] text-xl sm:text-3xl">❂</div>
+                                </div>
+                                <div class="flex justify-between items-center h-[70px] sm:h-[90px]">
+                                    <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">EI</div>
+                                    <div class="text-[#d4b068] text-xl sm:text-3xl flex gap-3"><span>❂</span><span>❂</span></div>
+                                </div>
+                                <div class="flex items-center h-[70px] sm:h-[90px]">
+                                    <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">TYHJIÄ</div>
+                                </div>
+                                <div class="flex items-center h-[70px] sm:h-[90px]">
+                                    <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">POISSA</div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col z-10 bg-[#b8955e] p-1.5 gap-1.5 border-2 border-[#8a683a] rounded-sm shadow-md">
+                                <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
+                                    <span id="fi-count-aye" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider">---</span>
+                                </div>
+                                <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
+                                    <span id="fi-count-nay" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider">---</span>
+                                </div>
+                                <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
+                                    <span id="fi-count-abstain" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider">---</span>
+                                </div>
+                                <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
+                                    <span id="fi-count-absent" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider">---</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 헝가리식 (HU) 전광판 -->
+                    <div id="hu-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#1a1a1a] p-4 sm:p-12 rounded-lg shadow-inner">
+                        <div class="w-full max-w-[850px] hu-board-bg border-[14px] border-[#cda434] p-8 sm:p-12 flex flex-col relative rounded-sm shadow-2xl">
+                            <div class="absolute inset-0 border-[4px] border-[#222] pointer-events-none"></div>
+                            <div class="absolute inset-[4px] border-[2px] border-[#e8c355] pointer-events-none opacity-60"></div>
                             
-                            <div class="h-6 border-b border-white/20 mb-6 w-full"></div>
+                            <div class="flex flex-col z-10 hu-text text-3xl sm:text-5xl font-sans tracking-wide space-y-5">
+                                <div class="flex items-center">
+                                    <span class="w-[45%]">Igen (찬성):</span>
+                                    <span id="hu-res-aye" class="w-[20%] text-right font-light">---</span>
+                                    <span id="hu-res-aye-pct" class="w-[35%] text-right font-light"></span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="w-[45%]">Nem (반대):</span>
+                                    <span id="hu-res-nay" class="w-[20%] text-right font-light">---</span>
+                                    <span id="hu-res-nay-pct" class="w-[35%] text-right font-light"></span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="w-[45%]">Tartózkodott (기권):</span>
+                                    <span id="hu-res-abstain" class="w-[20%] text-right font-light">---</span>
+                                    <span id="hu-res-abstain-pct" class="w-[35%] text-right font-light"></span>
+                                </div>
+                                
+                                <div class="h-6 border-b border-white/20 mb-6 w-full"></div>
+                                
+                                <div class="flex items-center mt-6">
+                                    <span class="w-[45%]">Szavazott (총투표):</span>
+                                    <span id="hu-res-total-voted" class="w-[20%] text-right font-light">---</span>
+                                    <span id="hu-res-total-voted-pct" class="w-[35%] text-right font-light"></span>
+                                </div>
+                                <div class="flex items-center mt-4 text-[#7ca9a9]">
+                                    <span class="w-[45%]">Nem szavazott (불참):</span>
+                                    <span id="hu-res-absent" class="w-[20%] text-right font-light">---</span>
+                                    <span class="w-[35%] text-right font-light"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 조지아식 (GE) 차트형 전광판 -->
+                    <div id="ge-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#0b101d] p-4 sm:p-12 rounded-lg shadow-inner">
+                        <div class="w-full max-w-[850px] bg-[#121826] border-[10px] border-[#c0c0c0] p-6 sm:p-8 flex flex-col relative rounded-md shadow-2xl" style="box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.9);">
+                            <!-- Inner thin dark gold border -->
+                            <div class="absolute inset-0 border border-[#4a3b22] m-[2px] pointer-events-none"></div>
                             
-                            <div class="flex items-center mt-6">
-                                <span class="w-[45%]">Szavazott:</span>
-                                <span id="hu-res-total-voted" class="w-[20%] text-right font-light"></span>
-                                <span id="hu-res-total-voted-pct" class="w-[35%] text-right font-light"></span>
+                            <!-- Top Header containing clock and title -->
+                            <div class="flex justify-between items-center border-b border-gray-700 pb-4 mb-6">
+                                <div class="text-left">
+                                    <h2 class="text-2xl sm:text-3xl text-white font-bold tracking-wider font-sans">კენჭისყრის შედეგი</h2>
+                                    <p class="text-xs sm:text-sm text-gray-400 mt-1">표결 결과 (Result of the Vote)</p>
+                                </div>
+                                <div class="text-right">
+                                    <div id="ge-clock" class="text-xl sm:text-3xl font-mono text-[#4ade80] font-bold tracking-widest">00:00:00</div>
+                                    <p id="ge-date" class="text-xs text-gray-500 font-mono mt-1">00.00.0000</p>
+                                </div>
                             </div>
-                            <div class="flex items-center mt-4 text-[#7ca9a9]">
-                                <span class="w-[45%]">Nem szavazott:</span>
-                                <span id="hu-res-absent" class="w-[20%] text-right font-light"></span>
-                                <span class="w-[35%] text-right font-light"></span>
+
+                            <!-- Bill Title inside Georgia Board -->
+                            <div class="text-center mb-6 z-10">
+                                <h3 id="ge-bill-title" class="text-lg sm:text-2xl font-bold text-[#facc15] truncate max-w-full"></h3>
                             </div>
+
+                            <!-- 4 Vertical Charts Grid (Yes, No, Abstain, Quorum) - ID 추가 완료 -->
+                            <div id="ge-bars-grid" class="grid grid-cols-4 gap-4 sm:gap-8 flex-grow w-full max-w-3xl mx-auto items-end pb-4 mt-6 z-10">
+                                <!-- MOMKHRE (찬성) -->
+                                <div id="ge-col-aye" class="flex flex-col items-center h-[260px] sm:h-[320px]">
+                                    <span id="ge-count-aye" class="text-2xl sm:text-4xl text-green-400 font-bold mb-3 font-mono">0</span>
+                                    <div class="bg-[#18181b] border-2 border-green-500/20 w-[45px] sm:w-[65px] flex-grow flex items-end rounded-t shadow-inner overflow-hidden">
+                                        <div id="ge-bar-aye" class="w-full bg-gradient-to-t from-green-600 to-green-400 rounded-t shadow-[0_0_12px_rgba(74,222,128,0.6)] transition-all duration-300" style="height: 0%;"></div>
+                                    </div>
+                                    <span class="text-sm sm:text-lg text-green-400 font-bold mt-3 text-center">მომხრე</span>
+                                    <span class="text-[10px] text-gray-400 mt-0.5">찬성 (Yes)</span>
+                                </div>
+
+                                <!-- TSINAAGMDEGI (반대) -->
+                                <div id="ge-col-nay" class="flex flex-col items-center h-[260px] sm:h-[320px]">
+                                    <span id="ge-count-nay" class="text-2xl sm:text-4xl text-red-400 font-bold mb-3 font-mono">0</span>
+                                    <div class="bg-[#18181b] border-2 border-red-500/20 w-[45px] sm:w-[65px] flex-grow flex items-end rounded-t shadow-inner overflow-hidden">
+                                        <div id="ge-bar-nay" class="w-full bg-gradient-to-t from-red-600 to-red-400 rounded-t shadow-[0_0_12px_rgba(248,113,113,0.6)] transition-all duration-300" style="height: 0%;"></div>
+                                    </div>
+                                    <span class="text-sm sm:text-lg text-red-400 font-bold mt-3 text-center">წინააღმდეგი</span>
+                                    <span class="text-[10px] text-gray-400 mt-0.5">반대 (No)</span>
+                                </div>
+
+                                <!-- TAVI SHEIKAVA (기권) -->
+                                <div id="ge-col-abstain" class="flex flex-col items-center h-[260px] sm:h-[320px]">
+                                    <span id="ge-count-abstain" class="text-2xl sm:text-4xl text-yellow-400 font-bold mb-3 font-mono">0</span>
+                                    <div class="bg-[#18181b] border-2 border-yellow-500/20 w-[45px] sm:w-[65px] flex-grow flex items-end rounded-t shadow-inner overflow-hidden">
+                                        <div id="ge-bar-abstain" class="w-full bg-gradient-to-t from-yellow-500 to-[#facc15] rounded-t shadow-[0_0_12px_rgba(250,204,21,0.6)] transition-all duration-300" style="height: 0%;"></div>
+                                    </div>
+                                    <span class="text-sm sm:text-lg text-yellow-400 font-bold mt-3 text-center">თავი შეიკავა</span>
+                                    <span class="text-[10px] text-gray-400 mt-0.5">기권 (Abstain)</span>
+                                </div>
+
+                                <!-- KVORUMI (정족수) -->
+                                <div id="ge-col-quorum" class="flex flex-col items-center h-[260px] sm:h-[320px]">
+                                    <span id="ge-count-quorum" class="text-2xl sm:text-4xl text-blue-400 font-bold mb-3 font-mono">0</span>
+                                    <div class="bg-[#18181b] border-2 border-blue-500/20 w-[45px] sm:w-[65px] flex-grow flex items-end rounded-t shadow-inner overflow-hidden">
+                                        <div id="ge-bar-quorum" class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t shadow-[0_0_12px_rgba(96,165,250,0.6)] transition-all duration-300" style="height: 0%;"></div>
+                                    </div>
+                                    <span class="text-sm sm:text-lg text-blue-400 font-bold mt-3 text-center">კვორუმი</span>
+                                    <span class="text-[10px] text-gray-400 mt-0.5">정족수 (Quorum)</span>
+                                </div>
+                            </div>
+
+                            <!-- Real-time Quorum Status Check badge -->
+                            <div class="mt-6 text-center z-10">
+                                <span id="ge-quorum-badge" class="bg-red-600/30 border border-red-500 text-red-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans">კვორუმი არ არის (정족수 미달)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 그리드 영역 (한국/우크라이나) -->
+                    <div id="grid-wrapper" class="bg-[#111] p-4 rounded-lg flex-grow overflow-y-auto border border-gray-800 w-full hidden">
+                        <div id="grid-layout-container" class="w-full">
+                            <div id="member-grid-col1" class="kr-vote-grid"></div>
+                            <div id="member-grid-col2" class="kr-vote-grid hidden"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 그리드 영역 (한국/우크라이나) -->
-                <div id="grid-wrapper" class="bg-[#111] p-4 rounded-lg flex-grow overflow-y-auto border border-gray-800 w-full hidden">
-                    <div id="grid-layout-container" class="w-full">
-                        <div id="member-grid-col1" class="kr-vote-grid"></div>
-                        <div id="member-grid-col2" class="kr-vote-grid hidden"></div>
+                <!-- 실시간 제어 패널 (HTML 누락 해결 완료) -->
+                <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-900 p-3 rounded-lg border border-slate-700 w-full hidden z-50" id="control-panel">
+                    <div class="flex items-center gap-3 text-sm text-slate-400 font-bold">
+                        <span>애니메이션 속도 조절</span>
+                        <input type="range" id="speed-slider" min="1" max="100" value="60" class="w-32 cursor-pointer accent-blue-500">
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="skip-vote-btn" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold py-2 px-4 rounded transition">즉시 완료 (Skip)</button>
+                        <button id="cancel-vote-btn" class="bg-red-600 hover:bg-red-500 text-white text-sm font-bold py-2 px-4 rounded transition">표결 중단</button>
                     </div>
                 </div>
             </div>
@@ -365,7 +445,7 @@
                 </div>
                 
                 <!-- 차트 영역 (작게 표시) -->
-                <div class="w-full max-w-[270px] sm:max-w-[270px] flex-grow flex items-center justify-center mb-8">
+                <div class="w-full max-w-[180px] sm:max-w-[220px] flex-grow flex items-center justify-center mb-8">
                     <canvas id="results-chart"></canvas>
                 </div>
                 
@@ -435,16 +515,16 @@
                 </div>
                 <div class="text-xl sm:text-4xl text-white w-full max-w-4xl space-y-4 sm:space-y-6">
                     <div class="flex justify-between items-end"><span>За <span class="text-gray-300 text-sm sm:text-xl ml-2">(찬성)</span></span><div class="ru-dotted-leader"></div><span><span id="ru-res-aye" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-aye-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
-                    <div class="flex justify-between items-end"><span>Против <span class="text-gray-300 text-sm sm:text-xl ml-2">(반대)</span></span><div class="ru-dotted-leader"></div><span><span id="ru-res-nay" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-nay-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
-                    <div class="flex justify-between items-end"><span>Воздержалось <span class="text-gray-300 text-sm sm:text-xl ml-2">(기권)</span></span><div class="ru-dotted-leader"></div><span><span id="ru-res-abstain" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-abstain-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
-                    <div class="flex justify-between items-end"><span>Голосовало <span class="text-gray-300 text-sm sm:text-xl ml-2">(총투표)</span></span><div class="ru-dotted-leader"></div><span><span id="ru-res-total-voted" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-total-voted-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
+                    <div class="flex justify-between items-end"><span>Против (반대)</span><div class="ru-dotted-leader"></div><span><span id="ru-res-nay" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-nay-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
+                    <div class="flex justify-between items-end"><span>Воздержалось (기권)</span><div class="ru-dotted-leader"></div><span><span id="ru-res-abstain" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-abstain-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
+                    <div class="flex justify-between items-end"><span>Голосовало (총투표)</span><div class="ru-dotted-leader"></div><span><span id="ru-res-total-voted" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-total-voted-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
                 </div>
                 <div id="ru-decision-banner" class="mt-12 sm:mt-16 text-center font-bold text-4xl sm:text-6xl uppercase tracking-wider text-white">РЕШЕНИЕ ПРИНЯТО</div>
             </div>
 
             <!-- 공통 재시작 컨테이너 -->
             <div id="common-restart-container" class="mt-8 text-center w-full z-50 relative">
-                 <button id="restart-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-10 rounded-lg text-lg transition border border-gray-500 shadow-xl">다시 시작</button>
+                 <button id="restart-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-10 rounded-lg text-lg transition border border-gray-500 shadow-xl">다시 시작 (설정으로)</button>
             </div>
         </div>
 
@@ -454,19 +534,22 @@
         const app = {
             state: {
                 currentScreen: 'setup',
-                theme: 'kr', // 'kr', 'ua', 'cn', 'ru', 'fi', 'hu'
-                billTitle: '1. 테스트',
+                theme: 'kr',
+                billTitle: '1. 상법 일부개정법률안',
                 parties: [],
                 members: [],
                 voteInProgress: false,
                 voteResults: {},
-                chart: null
+                chart: null,
+                voteIntervalId: null,
+                currentSpeed: 60
             },
 
             init() {
                 this.cacheDOM();
                 this.bindEvents();
                 this.loadInitialParties();
+                this.startClock();
                 this.render();
             },
 
@@ -495,6 +578,12 @@
                     startSimulationBtn: document.getElementById('start-simulation-btn'),
                     restartBtn: document.getElementById('restart-btn'),
                     
+                    // 제어 패널
+                    controlPanel: document.getElementById('control-panel'),
+                    speedSlider: document.getElementById('speed-slider'),
+                    skipVoteBtn: document.getElementById('skip-vote-btn'),
+                    cancelVoteBtn: document.getElementById('cancel-vote-btn'),
+
                     // Containers
                     votingContainer: document.getElementById('voting-container'),
                     titleContainer: document.getElementById('display-bill-title-container'),
@@ -513,6 +602,9 @@
                     ruBoard: document.getElementById('ru-board'),
                     fiBoard: document.getElementById('fi-board'),
                     huBoard: document.getElementById('hu-board'),
+                    geBoard: document.getElementById('ge-board'),
+                    geBillTitle: document.getElementById('ge-bill-title'),
+                    geQuorumBadge: document.getElementById('ge-quorum-badge'),
 
                     // Counts Elements
                     krCounts: {
@@ -538,6 +630,20 @@
                         abstain: document.getElementById('hu-res-abstain'), abstainPct: document.getElementById('hu-res-abstain-pct'),
                         totalVoted: document.getElementById('hu-res-total-voted'), totalVotedPct: document.getElementById('hu-res-total-voted-pct'),
                     },
+                    geCounts: {
+                        aye: document.getElementById('ge-count-aye'),
+                        nay: document.getElementById('ge-count-nay'),
+                        abstain: document.getElementById('ge-count-abstain'),
+                        quorum: document.getElementById('ge-count-quorum'),
+                    },
+                    geBars: {
+                        aye: document.getElementById('ge-bar-aye'),
+                        nay: document.getElementById('ge-bar-nay'),
+                        abstain: document.getElementById('ge-bar-abstain'),
+                        quorum: document.getElementById('ge-bar-quorum'),
+                    },
+                    geClock: document.getElementById('ge-clock'),
+                    geDate: document.getElementById('ge-date'),
 
                     // Results Boards
                     krResultsBoard: document.getElementById('kr-results-board'),
@@ -604,6 +710,47 @@
                 });
                 this.dom.startSimulationBtn.addEventListener('click', () => this.startSimulation());
                 this.dom.restartBtn.addEventListener('click', () => this.reset());
+
+                // 실시간 제어판 이벤트
+                this.dom.speedSlider.addEventListener('input', (e) => {
+                    this.state.currentSpeed = parseInt(e.target.value);
+                    if (this.state.voteInProgress) {
+                        this.adjustVoteInterval();
+                    }
+                });
+
+                this.dom.skipVoteBtn.addEventListener('click', () => {
+                    if (this.state.voteInProgress) {
+                        this.skipVoteProgress();
+                    }
+                });
+
+                this.dom.cancelVoteBtn.addEventListener('click', () => {
+                    if (this.state.voteInProgress) {
+                        if (this.state.voteIntervalId) clearInterval(this.state.voteIntervalId);
+                        this.state.voteInProgress = false;
+                        this.reset();
+                    }
+                });
+            },
+
+            startClock() {
+                const updateClocks = () => {
+                    const now = new Date();
+                    const hrs = now.getHours().toString().padStart(2, '0');
+                    const mins = now.getMinutes().toString().padStart(2, '0');
+                    const secs = now.getSeconds().toString().padStart(2, '0');
+                    
+                    if (this.dom.geClock && this.dom.geDate) {
+                        this.dom.geClock.textContent = `${hrs}:${mins}:${secs}`;
+                        const day = now.getDate().toString().padStart(2, '0');
+                        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                        const year = now.getFullYear();
+                        this.dom.geDate.textContent = `${day}.${month}.${year}`;
+                    }
+                };
+                setInterval(updateClocks, 1000);
+                updateClocks();
             },
 
             loadInitialParties() {
@@ -643,7 +790,11 @@
                 this.updatePartiesFromDOM();
                 const content = this.state.parties.map(p => `${p.name}, ${p.seats}, ${p.stance}, ${p.defectionRate}`).join('\n');
                 const mimeType = format === 'csv' ? 'text/csv' : 'text/plain';
-                const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+                
+                // 엑셀에서 한글이 깨지지 않도록 UTF-8 BOM(\uFEFF)을 앞에 추가
+                const blobContent = format === 'csv' ? '\uFEFF' + content : content;
+                const blob = new Blob([blobContent], { type: `${mimeType};charset=utf-8;` });
+                
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.setAttribute('href', url);
@@ -691,7 +842,7 @@
                 this.state.theme = this.dom.themeSelector.value;
                 
                 const allBoards = [
-                    this.dom.krHeader, this.dom.uaHeader, this.dom.cnBoard, this.dom.ruBoard, this.dom.fiBoard, this.dom.huBoard,
+                    this.dom.krHeader, this.dom.uaHeader, this.dom.cnBoard, this.dom.ruBoard, this.dom.fiBoard, this.dom.huBoard, this.dom.geBoard,
                     this.dom.krResultsBoard, this.dom.uaResultsBoard, this.dom.cnResultsBoard, this.dom.ruResultsBoard
                 ];
                 allBoards.forEach(el => {
@@ -701,6 +852,8 @@
                 this.dom.votingContainer.className = 'bg-gray-900/80 border border-gray-700 p-4 sm:p-6 rounded-lg shadow-2xl shadow-sky-500/10 w-full h-full flex flex-col';
                 this.dom.titleContainer.classList.remove('hidden');
                 this.dom.gridWrapper.classList.remove('hidden');
+                this.dom.controlPanel.classList.remove('hidden');
+                this.dom.controlPanel.classList.add('flex');
                 
                 if (this.state.theme === 'kr') {
                     this.dom.krHeader.classList.remove('hidden');
@@ -748,11 +901,20 @@
                     this.dom.huBoard.classList.remove('hidden'); 
                     this.dom.huBoard.classList.add('flex');
                 }
+                else if (this.state.theme === 'ge') {
+                    this.dom.votingContainer.className = 'w-full h-full flex flex-col'; 
+                    this.dom.titleContainer.classList.add('hidden');
+                    this.dom.gridWrapper.classList.add('hidden');
+                    this.dom.geBoard.classList.remove('hidden'); 
+                    this.dom.geBoard.classList.add('flex');
+                }
             },
 
             startSimulation() {
                 this.updatePartiesFromDOM();
                 this.state.billTitle = this.dom.billTitleInput.value;
+                this.dom.speedSlider.value = 60;
+                this.state.currentSpeed = 60;
                 
                 document.documentElement.style.setProperty('--color-aye', this.dom.colorAye.value);
                 document.documentElement.style.setProperty('--color-nay', this.dom.colorNay.value);
@@ -761,16 +923,26 @@
                 this.applyTheme();
                 
                 if (this.state.theme === 'fi') {
-                    this.dom.fiCounts.aye.textContent = '';
-                    this.dom.fiCounts.nay.textContent = '';
-                    this.dom.fiCounts.abstain.textContent = '';
-                    this.dom.fiCounts.absent.textContent = '';
+                    this.dom.fiCounts.aye.textContent = '---';
+                    this.dom.fiCounts.nay.textContent = '---';
+                    this.dom.fiCounts.abstain.textContent = '---';
+                    this.dom.fiCounts.absent.textContent = '---';
                 } else if (this.state.theme === 'hu') {
-                    this.dom.huRes.aye.textContent = ''; this.dom.huRes.ayePct.textContent = '';
-                    this.dom.huRes.nay.textContent = ''; this.dom.huRes.nayPct.textContent = '';
-                    this.dom.huRes.abstain.textContent = ''; this.dom.huRes.abstainPct.textContent = '';
-                    this.dom.huRes.totalVoted.textContent = ''; this.dom.huRes.totalVotedPct.textContent = '';
-                    this.dom.huRes.absent.textContent = '';
+                    this.dom.huRes.aye.textContent = '---'; this.dom.huRes.ayePct.textContent = '';
+                    this.dom.huRes.nay.textContent = '---'; this.dom.huRes.nayPct.textContent = '';
+                    this.dom.huRes.abstain.textContent = '---'; this.dom.huRes.abstainPct.textContent = '';
+                    this.dom.huRes.totalVoted.textContent = '---'; this.dom.huRes.totalVotedPct.textContent = '';
+                    this.dom.huRes.absent.textContent = '---';
+                } else if (this.state.theme === 'ge') {
+                    this.dom.geBillTitle.textContent = this.state.billTitle;
+                    this.dom.geCounts.aye.textContent = '0';
+                    this.dom.geCounts.nay.textContent = '0';
+                    this.dom.geCounts.abstain.textContent = '0';
+                    this.dom.geCounts.quorum.textContent = '0';
+                    this.dom.geBars.aye.style.height = '0%';
+                    this.dom.geBars.nay.style.height = '0%';
+                    this.dom.geBars.abstain.style.height = '0%';
+                    this.dom.geBars.quorum.style.height = '0%';
                 }
 
                 this.generateMembers();
@@ -798,11 +970,54 @@
                 });
             },
             
+            calculateIndividualStance(member) {
+                const isDefector = Math.random() < member.defectionRate;
+                let vote, vs = member.stance;
+
+                if(vs === 'boycott' || vs === 'partial_boycott_random') vs = 'random';
+                else if(vs === 'partial_boycott_aye') vs = 'aye';
+                else if(vs === 'partial_boycott_nay') vs = 'nay';
+
+                if (vs === 'random') {
+                    const roll = Math.random();
+                    vote = roll < 0.45 ? 'aye' : (roll < 0.9 ? 'nay' : 'abstain');
+                } else if (vs === 'abstain') {
+                    vote = isDefector ? (Math.random() < 0.5 ? 'aye' : 'nay') : 'abstain';
+                } else { 
+                    vote = isDefector ? (vs === 'aye' ? 'nay' : 'aye') : vs;
+                    if (isDefector && Math.random() < 0.3) vote = 'abstain';
+                }
+                return vote;
+            },
+
+            adjustVoteInterval() {
+                if (this.state.voteIntervalId) clearInterval(this.state.voteIntervalId);
+                const delay = Math.max(10, 310 - (this.state.currentSpeed * 3));
+                
+                this.state.voteIntervalId = setInterval(() => {
+                    if (this.state.voteIndex >= this.state.presentMembers.length) {
+                        clearInterval(this.state.voteIntervalId);
+                        this.state.voteInProgress = false;
+                        
+                        const isInstantTheme = ['cn', 'ru', 'fi', 'hu', 'ge'].includes(this.state.theme);
+                        setTimeout(() => this.showResults(), isInstantTheme ? 500 : 3000);
+                        return;
+                    }
+                    
+                    const memberToVote = this.state.members.find(m => m.id === this.state.presentMembers[this.state.voteIndex].id);
+                    if (memberToVote) {
+                        memberToVote.status = this.calculateIndividualStance(memberToVote);
+                    }
+                    
+                    this.renderVotingScreen();
+                    this.state.voteIndex++;
+                }, delay);
+            },
+
             startVote() {
                 if (this.state.voteInProgress || this.state.members.length === 0) return;
                 this.state.voteInProgress = true;
                 
-                const attendanceRate = 1.0;
                 const membersToExclude = new Set();
 
                 this.state.parties.forEach(party => {
@@ -819,43 +1034,78 @@
                 });
                 
                 const potentialAttendees = this.state.members.filter(m => !membersToExclude.has(m.id));
-                const presentMembers = potentialAttendees.sort(() => 0.5 - Math.random());
+                this.state.presentMembers = potentialAttendees.sort(() => 0.5 - Math.random());
+                this.state.voteIndex = 0;
 
-                let voteIndex = 0;
-                const voteInterval = setInterval(() => {
-                    if (voteIndex >= presentMembers.length) {
-                        clearInterval(voteInterval);
-                        this.state.voteInProgress = false;
-                        
-                        const isInstantTheme = ['cn', 'ru', 'fi', 'hu'].includes(this.state.theme);
-                        setTimeout(() => this.showResults(), isInstantTheme ? 500 : 3000);
-                        return;
-                    }
-                    
-                    const memberToVote = this.state.members.find(m => m.id === presentMembers[voteIndex].id);
+                this.adjustVoteInterval();
+            },
+
+            skipVoteProgress() {
+                if (this.state.voteIntervalId) clearInterval(this.state.voteIntervalId);
+                
+                // 남아있는 모든 사람에게 한 번에 표결 상태 부여
+                while (this.state.voteIndex < this.state.presentMembers.length) {
+                    const memberToVote = this.state.members.find(m => m.id === this.state.presentMembers[this.state.voteIndex].id);
                     if (memberToVote) {
-                        const isDefector = Math.random() < memberToVote.defectionRate;
-                        let vote, vs = memberToVote.stance;
+                        memberToVote.status = this.calculateIndividualStance(memberToVote);
+                    }
+                    this.state.voteIndex++;
+                }
 
-                        if(vs === 'boycott' || vs === 'partial_boycott_random') vs = 'random';
-                        else if(vs === 'partial_boycott_aye') vs = 'aye';
-                        else if(vs === 'partial_boycott_nay') vs = 'nay';
+                this.state.voteInProgress = false;
+                this.renderVotingScreen();
+                
+                const isInstantTheme = ['cn', 'ru', 'fi', 'hu', 'ge'].includes(this.state.theme);
+                setTimeout(() => this.showResults(), isInstantTheme ? 300 : 1500);
+            },
 
-                        if (vs === 'random') {
-                           const roll = Math.random();
-                           vote = roll < 0.45 ? 'aye' : (roll < 0.9 ? 'nay' : 'abstain');
-                        } else if (vs === 'abstain') {
-                            vote = isDefector ? (Math.random() < 0.5 ? 'aye' : 'nay') : 'abstain';
-                        } else { 
-                           vote = isDefector ? (vs === 'aye' ? 'nay' : 'aye') : vs;
-                           if (isDefector && Math.random() < 0.3) vote = 'abstain';
+            updateGeorgiaChartColumns(aye, nay, abstain) {
+                // 조지아 테마 실시간 열 배치 및 0표 득표 시 보드 내 열 숨김 로직
+                const geBarsGrid = document.getElementById('ge-bars-grid');
+                if (geBarsGrid) {
+                    let visibleCount = 0;
+                    
+                    const colAye = document.getElementById('ge-col-aye');
+                    const colNay = document.getElementById('ge-col-nay');
+                    const colAbstain = document.getElementById('ge-col-abstain');
+                    const colQuorum = document.getElementById('ge-col-quorum');
+
+                    if (colAye) {
+                        if (aye > 0) {
+                            colAye.style.display = 'flex';
+                            visibleCount++;
+                        } else {
+                            colAye.style.display = 'none';
                         }
-                        memberToVote.status = vote;
                     }
                     
-                    this.renderVotingScreen();
-                    voteIndex++;
-                }, 20);
+                    if (colNay) {
+                        if (nay > 0) {
+                            colNay.style.display = 'flex';
+                            visibleCount++;
+                        } else {
+                            colNay.style.display = 'none';
+                        }
+                    }
+                    
+                    if (colAbstain) {
+                        if (abstain > 0) {
+                            colAbstain.style.display = 'flex';
+                            visibleCount++;
+                        } else {
+                            colAbstain.style.display = 'none';
+                        }
+                    }
+                    
+                    if (colQuorum) {
+                        colQuorum.style.display = 'flex';
+                        visibleCount++;
+                    }
+
+                    // 열 배치 동적 리사이즈 및 레이아웃 충돌 제거
+                    geBarsGrid.style.gridTemplateColumns = `repeat(${visibleCount}, minmax(0, 1fr))`;
+                    geBarsGrid.style.maxWidth = `${visibleCount * 180}px`;
+                }
             },
             
             showResults() {
@@ -873,6 +1123,7 @@
                 this.state.chart = null;
                 this.state.members = [];
                 this.state.voteResults = {};
+                this.dom.controlPanel.classList.add('hidden');
                 
                 if(this.state.theme === 'fi') {
                     this.dom.fiBoard.classList.add('hidden');
@@ -881,6 +1132,10 @@
                 if(this.state.theme === 'hu') {
                     this.dom.huBoard.classList.add('hidden');
                     this.dom.votingContainer.appendChild(this.dom.huBoard);
+                }
+                if(this.state.theme === 'ge') {
+                    this.dom.geBoard.classList.add('hidden');
+                    this.dom.votingContainer.appendChild(this.dom.geBoard);
                 }
 
                 this.switchScreen('setup');
@@ -970,7 +1225,7 @@
                         if(member.status === 'nay') hi = 'color: var(--color-nay);';
                         if(member.status === 'abstain') hi = 'color: var(--color-abstain);';
                         
-                        return `<div class="flex items-center gap-1.5 overflow-hidden"><div class="vote-circle status-${member.status}"></div><span class="text-xs truncate ${tc}">${member.party}</span><span class="text-[10px] whitespace-nowrap opacity-90" style="${hi}">(${statusTextMap[member.status]})</span></div>`;
+                        return `<div class="flex items-center gap-1.5 overflow-hidden" title="${member.party}"><div class="vote-circle status-${member.status}"></div><span class="text-xs truncate ${tc}">${member.party}</span><span class="text-[10px] whitespace-nowrap opacity-90" style="${hi}">(${statusTextMap[member.status]})</span></div>`;
                     }).join('');
 
                     const midIndex = Math.ceil(total / 2);
@@ -982,11 +1237,36 @@
                     this.dom.cnCounts.nay.textContent = '0';
                     this.dom.cnCounts.abstain.textContent = '0';
                 }
+                else if (this.state.theme === 'ge') {
+                    this.dom.geCounts.aye.textContent = aye;
+                    this.dom.geCounts.nay.textContent = nay;
+                    this.dom.geCounts.abstain.textContent = abstain;
+                    this.dom.geCounts.quorum.textContent = present;
+
+                    const maxForHeight = Math.max(1, total);
+                    this.dom.geBars.aye.style.height = `${(aye / maxForHeight) * 100}%`;
+                    this.dom.geBars.nay.style.height = `${(nay / maxForHeight) * 100}%`;
+                    this.dom.geBars.abstain.style.height = `${(abstain / maxForHeight) * 100}%`;
+                    this.dom.geBars.quorum.style.height = `${(present / maxForHeight) * 100}%`;
+
+                    // 조지아 전용 0표 득표 시 열 숨김 처리 및 실시간 동적 크기 스케일링
+                    this.updateGeorgiaChartColumns(aye, nay, abstain);
+
+                    const requiredQuorum = Math.ceil(total / 2);
+                    if (present >= requiredQuorum) {
+                        this.dom.geQuorumBadge.textContent = "კვორუმი არის (정족수 충족)";
+                        this.dom.geQuorumBadge.className = "bg-green-600/30 border border-green-500 text-green-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans transition-all duration-300";
+                    } else {
+                        this.dom.geQuorumBadge.textContent = "კვორუმი არ არის (정족수 미달)";
+                        this.dom.geQuorumBadge.className = "bg-red-600/30 border border-red-500 text-red-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans transition-all duration-300";
+                    }
+                }
             },
 
             renderResultsScreen() {
                 this.dom.krResultsBillTitle.textContent = this.state.billTitle;
                 this.dom.cnResultsBillTitle.textContent = this.state.billTitle;
+                this.dom.controlPanel.classList.add('hidden');
                 
                 const { aye, nay, abstain } = this.state.voteResults;
                 const totalMembers = this.state.members.length;
@@ -1091,6 +1371,38 @@
                     board.classList.add('flex');
                     resultScreen.insertBefore(board, restartContainer);
                 }
+                else if (this.state.theme === 'ge') {
+                    this.dom.geCounts.aye.textContent = aye;
+                    this.dom.geCounts.nay.textContent = nay;
+                    this.dom.geCounts.abstain.textContent = abstain;
+                    this.dom.geCounts.quorum.textContent = totalVotes; // 결과에서는 기권 포함
+
+                    const maxForHeight = Math.max(1, totalMembers);
+                    this.dom.geBars.aye.style.height = `${(aye / maxForHeight) * 100}%`;
+                    this.dom.geBars.nay.style.height = `${(nay / maxForHeight) * 100}%`;
+                    this.dom.geBars.abstain.style.height = `${(abstain / maxForHeight) * 100}%`;
+                    this.dom.geBars.quorum.style.height = `${(totalVotes / maxForHeight) * 100}%`;
+
+                    // 결과 전광판에서도 0표 득표 시 열 숨김 처리 적용
+                    this.updateGeorgiaChartColumns(aye, nay, abstain);
+
+                    const requiredQuorum = Math.ceil(totalMembers / 2);
+                    if (totalVotes >= requiredQuorum) {
+                        this.dom.geQuorumBadge.textContent = "კვორუმი არის (정족수 충족)";
+                        this.dom.geQuorumBadge.className = "bg-green-600/30 border border-green-500 text-green-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans";
+                    } else {
+                        this.dom.geQuorumBadge.textContent = "კვორუმი არ არის (정족수 미달)";
+                        this.dom.geQuorumBadge.className = "bg-red-600/30 border border-red-500 text-red-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans";
+                    }
+
+                    const resultScreen = document.getElementById('results-screen');
+                    const board = this.dom.geBoard;
+                    const restartContainer = document.getElementById('common-restart-container');
+                    
+                    board.classList.remove('hidden');
+                    board.classList.add('flex');
+                    resultScreen.insertBefore(board, restartContainer);
+                }
             },
 
             create2DChart() {
@@ -1113,7 +1425,10 @@
             }
         };
 
-        app.init();
+        // DOM이 완벽히 로드된 후 스크립트 실행 보장
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
     </script>
 </body>
 </html>
