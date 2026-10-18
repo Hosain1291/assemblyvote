@@ -6,7 +6,7 @@
     <title>나만의 표결</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+Armenian:wght@500;700&display=swap" rel="stylesheet">
     <style>
         @font-face { font-family: 'Pretendard'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Thin.woff2') format('woff2'); font-weight: 100; font-display: swap; }
         @font-face { font-family: 'Pretendard'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
@@ -107,6 +107,10 @@
                         <option value="fi">🇫🇮 핀란드 의회 스타일 (클래식 보드, 즉시 최종 표시)</option>
                         <option value="hu">🇭🇺 헝가리 의회 스타일 (물결 배경 보드, 즉시 최종 표시)</option>
                         <option value="ge">🇬🇪 조지아 국회 스타일 (차트형 실시간 성장 전광판)</option>
+                        <option value="am">🇦🇲 아르메니아 국회 스타일 (좌석 번호 원형 배치도)</option>
+                        <option value="al">🇦🇱 알바니아 의회 스타일 (의원 명패 전광판)</option>
+                        <option value="in">🇮🇳 인도 록사바 스타일 (Division 버튼 배치도)</option>
+                        <option value="eu">🇪🇺 유럽의회 스타일 (점 배치도 + 합계 표시)</option>
                     </select>
                 </div>
 
@@ -126,6 +130,10 @@
                             <label for="color-abstain" class="text-sm font-bold" style="color: var(--color-abstain, #ffcc00);">기권</label>
                         </div>
                     </div>
+                    <label class="flex items-center gap-2 mt-3 text-sm text-slate-400 cursor-pointer">
+                        <input type="checkbox" id="auth-colors" checked class="accent-sky-500">
+                        고증 색상 사용 (아르메니아·알바니아·인도·EU 테마는 실제 전광판 색상으로 표시)
+                    </label>
                 </div>
 
                 <div>
@@ -394,6 +402,26 @@
                         </div>
                     </div>
 
+                    <!-- 아르메니아식 (AM): 좌석 번호 원형 배치도 -->
+                    <div id="am-board" class="hidden flex-col items-center justify-center h-full w-full">
+                        <svg viewBox="0 0 1160 650" class="rounded-lg shadow-2xl border border-slate-800" style="width:min(100%, calc(70vh * 1160 / 650)); aspect-ratio:1160/650;"></svg>
+                    </div>
+
+                    <!-- 알바니아식 (AL): 의원 명패 전광판 -->
+                    <div id="al-board" class="hidden flex-col items-center justify-center h-full w-full">
+                        <svg viewBox="0 0 1280 720" class="rounded-lg shadow-2xl border-[6px] border-[#2b2b2b]" style="width:min(100%, calc(70vh * 1280 / 720)); aspect-ratio:1280/720;"></svg>
+                    </div>
+
+                    <!-- 인도식 (IN): Division 버튼 배치도 -->
+                    <div id="in-board" class="hidden flex-col items-center justify-center h-full w-full">
+                        <svg viewBox="0 0 1280 720" class="rounded-lg shadow-2xl border-[6px] border-[#1c1f27]" style="width:min(100%, calc(70vh * 1280 / 720)); aspect-ratio:1280/720;"></svg>
+                    </div>
+
+                    <!-- 유럽의회식 (EU): 점 배치도 + 합계 -->
+                    <div id="eu-board" class="hidden flex-col items-center justify-center h-full w-full">
+                        <svg viewBox="0 0 1200 630" class="rounded-lg shadow-2xl border-[6px] border-[#cfd3d8]" style="width:min(100%, calc(70vh * 1200 / 630)); aspect-ratio:1200/630;"></svg>
+                    </div>
+
                     <!-- 그리드 영역 (한국/우크라이나) -->
                     <div id="grid-wrapper" class="bg-[#111] p-4 rounded-lg flex-grow overflow-y-auto border border-gray-800 w-full hidden">
                         <div id="grid-layout-container" class="w-full">
@@ -522,6 +550,9 @@
                 <div id="ru-decision-banner" class="mt-12 sm:mt-16 text-center font-bold text-4xl sm:text-6xl uppercase tracking-wider text-white">РЕШЕНИЕ ПРИНЯТО</div>
             </div>
 
+            <!-- 좌석 배치형 테마 공통 가결/부결 표시 -->
+            <div id="seat-decision" class="hidden mt-4 text-center text-2xl sm:text-3xl font-bold tracking-wide w-full"></div>
+
             <!-- 공통 재시작 컨테이너 -->
             <div id="common-restart-container" class="mt-8 text-center w-full z-50 relative">
                  <button id="restart-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-10 rounded-lg text-lg transition border border-gray-500 shadow-xl">다시 시작 (설정으로)</button>
@@ -542,7 +573,33 @@
                 voteResults: {},
                 chart: null,
                 voteIntervalId: null,
-                currentSpeed: 60
+                currentSpeed: 60,
+                // 좌석 배치형 테마(AM/AL/IN/EU) 전용 상태
+                palette: null,
+                presentIds: null,
+                voteStartTs: null,
+                voteEndTs: null,
+                seatEls: null,
+                seatTexts: null
+            },
+
+            // 좌석 배치형 테마 목록 및 고증 색상 (첨부 사진 기준)
+            SEAT_THEMES: ['am', 'al', 'in', 'eu'],
+            PALETTES: {
+                // 아르메니아: 출석(대기)=파랑, 불참=흰색
+                am: { aye: '#6be04f', nay: '#ff4a4a', abstain: '#ffd84a', pending: '#1f62ff', absent: '#e8f1ff' },
+                // 알바니아: 명패 사각형, 출석(대기)=하늘색, 불참=흰색
+                al: { aye: '#61e842', nay: '#ff3d3d', abstain: '#f3e43a', pending: '#3a9ee8', absent: '#f4f4f4' },
+                // 인도: 미투표=흰색 버튼
+                in: { aye: '#22c33a', nay: '#e32424', abstain: '#ffe11f', pending: '#f2f2f2', absent: '#f2f2f2' },
+                // EU: 찬성=초록, 반대=빨강, 기권=연보라, 미투표=어두운 점
+                eu: { aye: '#3fd28f', nay: '#ee5a5a', abstain: '#c6c3ff', pending: '#4a63b0', absent: '#4a63b0' }
+            },
+            DECISIONS: {
+                am: ['Ընդունվեց', 'Չընդունվեց'],
+                al: ['U miratua', 'Nuk u miratua'],
+                in: ['The motion was adopted', 'The motion was negatived'],
+                eu: ['Adopted', 'Rejected']
             },
 
             init() {
@@ -565,6 +622,8 @@
                     colorAye: document.getElementById('color-aye'),
                     colorNay: document.getElementById('color-nay'),
                     colorAbstain: document.getElementById('color-abstain'),
+                    authColors: document.getElementById('auth-colors'),
+                    seatDecision: document.getElementById('seat-decision'),
                     billTitleInput: document.getElementById('bill-title-input'),
                     announcementTitle: document.getElementById('announcement-title'),
                     partyListEditor: document.getElementById('party-list-editor'),
@@ -603,6 +662,10 @@
                     fiBoard: document.getElementById('fi-board'),
                     huBoard: document.getElementById('hu-board'),
                     geBoard: document.getElementById('ge-board'),
+                    amBoard: document.getElementById('am-board'),
+                    alBoard: document.getElementById('al-board'),
+                    inBoard: document.getElementById('in-board'),
+                    euBoard: document.getElementById('eu-board'),
                     geBillTitle: document.getElementById('ge-bill-title'),
                     geQuorumBadge: document.getElementById('ge-quorum-badge'),
 
@@ -683,6 +746,11 @@
 
                     resultsChart: document.getElementById('results-chart').getContext('2d'),
                 };
+
+                // 결과 화면으로 옮겨졌다가 되돌릴 때 원래 위치를 기억
+                this.boardHome = new Map();
+                [this.dom.fiBoard, this.dom.huBoard, this.dom.geBoard, this.dom.amBoard, this.dom.alBoard, this.dom.inBoard, this.dom.euBoard]
+                    .forEach(b => this.boardHome.set(b, b.parentElement));
             },
 
             bindEvents() {
@@ -748,6 +816,7 @@
                         const year = now.getFullYear();
                         this.dom.geDate.textContent = `${day}.${month}.${year}`;
                     }
+                    this.updateSeatClock();
                 };
                 setInterval(updateClocks, 1000);
                 updateClocks();
@@ -843,7 +912,8 @@
                 
                 const allBoards = [
                     this.dom.krHeader, this.dom.uaHeader, this.dom.cnBoard, this.dom.ruBoard, this.dom.fiBoard, this.dom.huBoard, this.dom.geBoard,
-                    this.dom.krResultsBoard, this.dom.uaResultsBoard, this.dom.cnResultsBoard, this.dom.ruResultsBoard
+                    this.dom.krResultsBoard, this.dom.uaResultsBoard, this.dom.cnResultsBoard, this.dom.ruResultsBoard,
+                    this.dom.amBoard, this.dom.alBoard, this.dom.inBoard, this.dom.euBoard
                 ];
                 allBoards.forEach(el => {
                     if (el) { el.classList.add('hidden'); el.classList.remove('flex', 'grid'); }
@@ -905,8 +975,16 @@
                     this.dom.votingContainer.className = 'w-full h-full flex flex-col'; 
                     this.dom.titleContainer.classList.add('hidden');
                     this.dom.gridWrapper.classList.add('hidden');
-                    this.dom.geBoard.classList.remove('hidden'); 
+                    this.dom.geBoard.classList.remove('hidden');
                     this.dom.geBoard.classList.add('flex');
+                }
+                else if (this.isSeatTheme()) {
+                    this.dom.votingContainer.className = 'w-full h-full flex flex-col';
+                    this.dom.titleContainer.classList.add('hidden');
+                    this.dom.gridWrapper.classList.add('hidden');
+                    const board = this.dom[`${this.state.theme}Board`];
+                    board.classList.remove('hidden');
+                    board.classList.add('flex');
                 }
             },
 
@@ -916,12 +994,21 @@
                 this.dom.speedSlider.value = 60;
                 this.state.currentSpeed = 60;
                 
-                document.documentElement.style.setProperty('--color-aye', this.dom.colorAye.value);
-                document.documentElement.style.setProperty('--color-nay', this.dom.colorNay.value);
-                document.documentElement.style.setProperty('--color-abstain', this.dom.colorAbstain.value);
-
                 this.applyTheme();
-                
+
+                // 테마별 팔레트 결정 (좌석 배치형 테마는 고증 색상 옵션 반영)
+                this.state.palette = this.computePalette(this.state.theme);
+                document.documentElement.style.setProperty('--color-aye', this.state.palette.aye);
+                document.documentElement.style.setProperty('--color-nay', this.state.palette.nay);
+                document.documentElement.style.setProperty('--color-abstain', this.state.palette.abstain);
+
+                this.state.presentIds = null;
+                this.state.voteStartTs = null;
+                this.state.voteEndTs = null;
+                this.state.seatEls = null;
+                this.state.seatTexts = null;
+                this.dom.seatDecision.classList.add('hidden');
+
                 if (this.state.theme === 'fi') {
                     this.dom.fiCounts.aye.textContent = '---';
                     this.dom.fiCounts.nay.textContent = '---';
@@ -946,6 +1033,7 @@
                 }
 
                 this.generateMembers();
+                if (this.isSeatTheme()) this.buildSeatBoard();
                 this.dom.announcementTitle.textContent = this.state.billTitle;
                 this.switchScreen('announcement');
                 
@@ -998,7 +1086,8 @@
                     if (this.state.voteIndex >= this.state.presentMembers.length) {
                         clearInterval(this.state.voteIntervalId);
                         this.state.voteInProgress = false;
-                        
+                        this.state.voteEndTs = Date.now();
+
                         const isInstantTheme = ['cn', 'ru', 'fi', 'hu', 'ge'].includes(this.state.theme);
                         setTimeout(() => this.showResults(), isInstantTheme ? 500 : 3000);
                         return;
@@ -1036,7 +1125,11 @@
                 const potentialAttendees = this.state.members.filter(m => !membersToExclude.has(m.id));
                 this.state.presentMembers = potentialAttendees.sort(() => 0.5 - Math.random());
                 this.state.voteIndex = 0;
+                this.state.presentIds = new Set(this.state.presentMembers.map(m => m.id));
+                this.state.voteStartTs = Date.now();
+                this.state.voteEndTs = null;
 
+                this.renderVotingScreen(); // 시작 직후 초기 상태(대기/불참 색)를 바로 표시
                 this.adjustVoteInterval();
             },
 
@@ -1053,8 +1146,9 @@
                 }
 
                 this.state.voteInProgress = false;
+                this.state.voteEndTs = Date.now();
                 this.renderVotingScreen();
-                
+
                 const isInstantTheme = ['cn', 'ru', 'fi', 'hu', 'ge'].includes(this.state.theme);
                 setTimeout(() => this.showResults(), isInstantTheme ? 300 : 1500);
             },
@@ -1125,18 +1219,17 @@
                 this.state.voteResults = {};
                 this.dom.controlPanel.classList.add('hidden');
                 
-                if(this.state.theme === 'fi') {
-                    this.dom.fiBoard.classList.add('hidden');
-                    this.dom.votingContainer.appendChild(this.dom.fiBoard);
-                }
-                if(this.state.theme === 'hu') {
-                    this.dom.huBoard.classList.add('hidden');
-                    this.dom.votingContainer.appendChild(this.dom.huBoard);
-                }
-                if(this.state.theme === 'ge') {
-                    this.dom.geBoard.classList.add('hidden');
-                    this.dom.votingContainer.appendChild(this.dom.geBoard);
-                }
+                // 결과 화면으로 옮겨졌던 전광판을 원래 위치로 복귀
+                this.boardHome.forEach((home, board) => {
+                    if (board.parentElement !== home) {
+                        board.classList.add('hidden');
+                        board.classList.remove('flex');
+                        home.appendChild(board);
+                    }
+                });
+                this.dom.seatDecision.classList.add('hidden');
+                this.state.voteStartTs = null;
+                this.state.voteEndTs = null;
 
                 this.switchScreen('setup');
             },
@@ -1260,6 +1353,9 @@
                         this.dom.geQuorumBadge.textContent = "კვორუმი არ არის (정족수 미달)";
                         this.dom.geQuorumBadge.className = "bg-red-600/30 border border-red-500 text-red-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans transition-all duration-300";
                     }
+                }
+                else if (this.isSeatTheme()) {
+                    this.renderSeatTheme({ aye, nay, abstain, absent });
                 }
             },
 
@@ -1403,6 +1499,315 @@
                     board.classList.add('flex');
                     resultScreen.insertBefore(board, restartContainer);
                 }
+                else if (this.isSeatTheme()) {
+                    this.renderVotingScreen(); // 최종 상태로 좌석/숫자 갱신
+                    const resultScreen = document.getElementById('results-screen');
+                    const board = this.dom[`${this.state.theme}Board`];
+                    const restartContainer = document.getElementById('common-restart-container');
+                    board.classList.remove('hidden');
+                    board.classList.add('flex');
+                    resultScreen.insertBefore(board, restartContainer);
+
+                    const labels = this.DECISIONS[this.state.theme];
+                    const banner = this.dom.seatDecision;
+                    banner.textContent = isPassed ? labels[0] : labels[1];
+                    banner.style.color = isPassed ? this.state.palette.aye : this.state.palette.nay;
+                    banner.classList.remove('hidden');
+                    resultScreen.insertBefore(banner, restartContainer);
+                }
+            },
+
+            /* =====================================================================
+             *  좌석 배치형 전광판 (아르메니아 / 알바니아 / 인도 / 유럽의회)
+             *  - 전체 보드를 하나의 SVG로 그려 화면 크기에 관계없이 비율을 유지
+             *  - 의원 i번 = i번째 좌석. 정당 순서대로 좌→우 부채꼴 쐐기로 배정
+             * ===================================================================== */
+            isSeatTheme(t = this.state.theme) { return this.SEAT_THEMES.includes(t); },
+
+            computePalette(theme) {
+                const user = {
+                    aye: this.dom.colorAye.value, nay: this.dom.colorNay.value, abstain: this.dom.colorAbstain.value,
+                    pending: '#2f6bff', absent: '#374151'
+                };
+                return (this.isSeatTheme(theme) && this.dom.authColors.checked) ? { ...this.PALETTES[theme] } : user;
+            },
+
+            esc(s) {
+                return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            },
+
+            truncate(s, max) {
+                const chars = [...String(s)];
+                return chars.length > max ? chars.slice(0, max - 1).join('') + '…' : chars.join('');
+            },
+
+            isLight(hex) {
+                const h = hex.replace('#', '');
+                const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+                return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
+            },
+
+            // 한 줄(호)의 좌석 각도 배열. gap > 0 이면 가운데 통로를 비움
+            rowAngles(c, a0, a1, gap) {
+                if (c <= 0) return [];
+                const mid = (a0 + a1) / 2;
+                if (!gap) return Array.from({ length: c }, (_, k) => c === 1 ? mid : a0 + (a1 - a0) * k / (c - 1));
+                const left = Math.ceil(c / 2), right = c - left;
+                const lEnd = mid + gap / 2, rStart = mid - gap / 2;
+                const out = [];
+                for (let k = 0; k < left; k++) out.push(left === 1 ? (a0 + lEnd) / 2 : a0 + (lEnd - a0) * k / (left - 1));
+                for (let k = 0; k < right; k++) out.push(right === 1 ? (rStart + a1) / 2 : rStart + (a1 - rStart) * k / (right - 1));
+                return out;
+            },
+
+            // n석을 여러 겹의 호로 배치. 각도 순(좌→우)으로 정렬해 반환
+            genFan(n, cfg) {
+                const { cx, cy, rIn, rOut, rows, a0, a1, gap = 0 } = cfg;
+                const radii = Array.from({ length: rows }, (_, i) => rows === 1 ? rIn : rIn + (rOut - rIn) * i / (rows - 1));
+                const sumR = radii.reduce((a, b) => a + b, 0);
+                const counts = radii.map(r => Math.floor(n * r / sumR));
+                let rem = n - counts.reduce((a, b) => a + b, 0);
+                for (let i = rows - 1; rem > 0; i = (i - 1 + rows) % rows) { counts[i]++; rem--; }
+
+                const seats = [];
+                let minArc = Infinity;
+                radii.forEach((r, ri) => {
+                    const angs = this.rowAngles(counts[ri], a0, a1, gap);
+                    angs.forEach((ang, k) => {
+                        const rad = ang * Math.PI / 180;
+                        seats.push({ x: cx + r * Math.cos(rad), y: cy - r * Math.sin(rad), ang, row: ri });
+                        if (k > 0) {
+                            const d = Math.abs(angs[k] - angs[k - 1]) * Math.PI / 180 * r;
+                            if (d > 0.5 && d < minArc) minArc = d;
+                        }
+                    });
+                });
+                seats.sort((p, q) => (q.ang - p.ang) || (p.row - q.row));
+                const rowGap = rows > 1 ? (rOut - rIn) / (rows - 1) : rOut - rIn;
+                const pitch = Math.min(rowGap, isFinite(minArc) ? minArc : 30);
+                return { seats, pitch };
+            },
+
+            buildSeatBoard() {
+                const t = this.state.theme;
+                const svg = this.dom[`${t}Board`].querySelector('svg');
+                const n = this.state.members.length;
+                const builders = { am: 'buildAm', al: 'buildAl', in: 'buildIn', eu: 'buildEu' };
+                svg.innerHTML = this[builders[t]](n);
+
+                const seatEls = [];
+                svg.querySelectorAll('[data-seat]').forEach(g => {
+                    seatEls[+g.dataset.seat] = { shape: g.querySelector('.s'), num: g.querySelector('.n') };
+                });
+                const texts = {};
+                svg.querySelectorAll('[data-k]').forEach(el => { texts[el.dataset.k] = el; });
+                this.state.seatEls = seatEls;
+                this.state.seatTexts = texts;
+                if (texts.title) texts.title.textContent = t === 'eu' ? this.truncate(this.state.billTitle, 42) : this.state.billTitle;
+                this.paintSeats();
+            },
+
+            /* ---------- 아르메니아 (사진: 번호가 적힌 파란 원 + 초록/흰 원) ---------- */
+            buildAm(n) {
+                const W = 1160, H = 650, pal = this.state.palette;
+                const rows = Math.max(3, Math.min(10, Math.round(Math.sqrt(n / 4.2))));
+                const { seats, pitch } = this.genFan(n, { cx: 585, cy: 505, rIn: 165, rOut: 440, rows, a0: 193, a1: -13, gap: 9 });
+                const r = Math.max(3, Math.min(15, pitch * 0.42));
+                const fs = Math.max(6, r * 0.95);
+                const font = "font-family:'Noto Sans Armenian','Pretendard',sans-serif";
+
+                let s = `<rect width="${W}" height="${H}" fill="#04060b"/>`;
+                s += `<text x="${W / 2}" y="46" text-anchor="middle" font-size="40" font-weight="700" fill="#e9f1ff" letter-spacing="3" style="${font}">ՔՎԵԱՐԿՈՒԹՅՈՒՆ</text>`;
+                s += `<text x="12" y="38" font-size="36" font-weight="700" fill="#ffffff" style="font-family:Arial,sans-serif">1</text>`;
+
+                seats.forEach((p, i) => {
+                    s += `<g data-seat="${i}"><circle class="s" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r.toFixed(1)}" fill="${pal.pending}"/>`;
+                    if (r >= 8) s += `<text class="n" x="${p.x.toFixed(1)}" y="${(p.y + fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs.toFixed(1)}" fill="#fff" style="font-family:Arial,sans-serif">${i + 1}</text>`;
+                    s += `</g>`;
+                });
+                // 하단 중앙 의장단석 4석 (집계 제외, 항상 출석 상태)
+                [-156, -52, 52, 156].forEach(dx => {
+                    s += `<circle cx="${585 + dx}" cy="612" r="${Math.min(r, 14).toFixed(1)}" fill="${pal.pending}"/>`;
+                });
+                // 집계: 좌측 상단 (Կողմ=찬성, Դեմ=반대, Ձեռնպահ=기권)
+                [['aye', 'Կողմ', pal.aye], ['nay', 'Դեմ', pal.nay], ['abs', 'Ձեռնպահ', pal.abstain]].forEach(([k, label, color], j) => {
+                    const y = 96 + j * 34;
+                    s += `<text x="14" y="${y}" font-size="24" fill="${color}" style="${font}">${label}</text>`;
+                    s += `<text data-k="${k}" x="250" y="${y}" text-anchor="end" font-size="26" font-weight="700" fill="${color}" style="font-family:Arial,sans-serif">0</text>`;
+                });
+                // 우하단 범용 의사당 아이콘 (공식 로고가 아닌 단순 도형)
+                s += `<g fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.9" transform="translate(1040,566)">` +
+                     `<path d="M0 22 L50 4 L100 22 Z"/><path d="M6 66 H94"/>` +
+                     [14, 32, 50, 68, 86].map(x => `<path d="M${x} 26 V62"/>`).join('') + `</g>`;
+                return s;
+            },
+
+            /* ---------- 알바니아 (사진: 검은 화면, 의원 명패 사각형 + 성) ---------- */
+            buildAl(n) {
+                const W = 1280, H = 720, pal = this.state.palette;
+                const cols = Math.max(6, Math.ceil(n / 33));
+                const rows = Math.max(1, Math.ceil(n / cols));
+                const x0 = 360, y0 = 150, availW = 880, availH = 520;
+                const colW = Math.min(150, availW / cols);
+                const rowH = Math.min(24, availH / rows);
+                const fs = Math.max(7, Math.min(13, rowH * 0.7));
+                const box = Math.max(6, Math.min(14, rowH * 0.62));
+                const maxChars = Math.max(2, Math.floor((colW - box - 10) / (fs * 0.95)));
+                const mid = (rows - 1) / 2;
+                const sans = "font-family:'Pretendard','Noto Sans KR',sans-serif";
+
+                let s = `<rect width="${W}" height="${H}" fill="#050505"/>`;
+                // 좌상단 하늘색 상태 띠
+                s += `<rect x="36" y="28" width="230" height="14" rx="2" fill="#78b6e8"/>`;
+                s += `<text x="42" y="39" font-size="10" fill="#0b2a4a" style="${sans}">Votim elektronik</text>`;
+                // 중앙 상단: 의장 표시 + 경과 시간
+                s += `<text x="450" y="52" text-anchor="middle" font-size="21" fill="#f0f0f0" style="font-family:Georgia,serif">Z. Kryetari i Kuvendit</text>`;
+                s += `<text data-k="timer" x="450" y="100" text-anchor="middle" font-size="40" font-weight="700" fill="#ffffff" style="font-family:Georgia,serif">00:00</text>`;
+                // 우상단 안건 박스
+                s += `<foreignObject x="575" y="24" width="520" height="80"><div data-k="title" style="background:#5aa4d8;color:#fff;font:600 14px/1.35 Pretendard,'Noto Sans KR',sans-serif;padding:7px 11px;height:100%;box-sizing:border-box;overflow:hidden;border-radius:2px"></div></foreignObject>`;
+                // 우상단 문장 자리 (공식 문장 대신 단순 방패 + 독수리 이모지)
+                s += `<path d="M1150 24 h80 v52 q0 34 -40 50 q-40 -16 -40 -50 z" fill="#d8232a" stroke="#ececec" stroke-width="4"/>`;
+                s += `<text x="1190" y="92" text-anchor="middle" font-size="40">🦅</text>`;
+
+                // 좌측: 의장석 / 발언석 (Foltorja = 발언자)
+                s += `<rect x="60" y="370" width="44" height="44" rx="3" fill="${pal.aye}"/>`;
+                s += `<text x="60" y="440" font-size="16" fill="#f0f0f0" style="${sans}">Kryesia</text>`;
+                s += `<rect x="170" y="370" width="44" height="44" rx="3" fill="#f4f4f4" stroke="#e0303a" stroke-width="3"/>`;
+                s += `<text x="226" y="400" font-size="18" fill="#f0f0f0" style="${sans}">Foltorja</text>`;
+                s += `<rect x="60" y="480" width="20" height="20" rx="2" fill="#f4f4f4" stroke="#e0303a" stroke-width="2"/>`;
+                s += `<text x="90" y="496" font-size="14" font-weight="700" fill="#ff4040" style="${sans}">KOHA E PAKUFIZUAR</text>`;
+
+                // 의원 명패: 열 단위로 채우고 살짝 휘어진 열(중앙이 우측으로 볼록)
+                for (let i = 0; i < n; i++) {
+                    const col = Math.floor(i / rows), row = i % rows;
+                    const tt = mid ? (row - mid) / mid : 0;
+                    const x = x0 + col * colW - 26 * tt * tt;
+                    const y = y0 + row * rowH;
+                    const label = this.esc([...this.state.members[i].party].slice(0, maxChars).join(''));
+                    s += `<g data-seat="${i}"><rect class="s" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${box.toFixed(1)}" height="${box.toFixed(1)}" rx="2" fill="${pal.pending}"/>` +
+                         `<text x="${(x + box + 5).toFixed(1)}" y="${(y + box * 0.86).toFixed(1)}" font-size="${fs.toFixed(1)}" fill="#f2f2f2" style="${sans}">${label}</text></g>`;
+                }
+                // 하단 집계 (Pro / Kundër / Abstenim / Nuk votuan)
+                [['aye', 'Pro', pal.aye, 360], ['nay', 'Kundër', pal.nay, 540], ['abs', 'Abstenim', pal.abstain, 740], ['rest', 'Nuk votuan', '#f4f4f4', 980]].forEach(([k, label, color, x]) => {
+                    s += `<text x="${x}" y="702" font-size="20" font-weight="700" fill="${color}" style="${sans}">${label} <tspan data-k="${k}">0</tspan></text>`;
+                });
+                return s;
+            },
+
+            /* ---------- 인도 록사바 (사진: Division 화면, 사각 버튼 + 우측 집계 패널) ---------- */
+            buildIn(n) {
+                const W = 1280, H = 720, pal = this.state.palette;
+                const rows = Math.max(4, Math.min(10, Math.round(Math.sqrt(n / 7))));
+                const { seats, pitch } = this.genFan(n, { cx: 480, cy: 660, rIn: 150, rOut: 440, rows, a0: 182, a1: -2 });
+                const sz = Math.max(4, Math.min(20, pitch * 0.82));
+                const serif = "font-family:Georgia,'Times New Roman',serif";
+                const sans = "font-family:'Segoe UI',Arial,sans-serif";
+
+                let s = `<defs><linearGradient id="in-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4357"/><stop offset="1" stop-color="#262d3c"/></linearGradient></defs>`;
+                s += `<rect width="${W}" height="${H}" fill="url(#in-bg)"/>`;
+                s += `<rect x="36" y="28" width="900" height="72" rx="8" fill="#586279"/>`;
+                s += `<text x="62" y="80" font-size="46" fill="#ffffff" style="${sans}">Division 1</text>`;
+
+                seats.forEach((p, i) => {
+                    const x = (p.x - sz / 2).toFixed(1), y = (p.y - sz * 0.425).toFixed(1);
+                    s += `<g data-seat="${i}"><rect class="s" x="${x}" y="${y}" width="${sz.toFixed(1)}" height="${(sz * 0.85).toFixed(1)}" rx="2" fill="${pal.pending}" stroke="rgba(0,0,0,0.35)" stroke-width="0.8" transform="rotate(${(90 - p.ang).toFixed(1)} ${p.x.toFixed(1)} ${p.y.toFixed(1)})"/></g>`;
+                });
+                // 중앙 타이머 (빨간 바 + 경과 시간)
+                s += `<rect x="420" y="552" width="120" height="14" rx="3" fill="#e01b1b"/>`;
+                s += `<text data-k="timer" x="480" y="618" text-anchor="middle" font-size="40" font-weight="600" fill="#ffffff" style="${sans}">00:00</text>`;
+
+                // 우측 패널
+                s += `<rect x="980" y="120" width="270" height="560" rx="6" fill="#2f374a" stroke="#4a5470" stroke-width="2"/>`;
+                s += `<text data-k="date" x="1115" y="168" text-anchor="middle" font-size="16" fill="#d9deea" style="${serif}"></text>`;
+                s += `<text data-k="time" x="1115" y="198" text-anchor="middle" font-size="22" fill="#ffffff" style="${serif}"></text>`;
+                s += `<text x="1000" y="370" font-size="20" fill="${pal.aye}" style="${serif}">AYES</text>`;
+                s += `<text data-k="aye" x="1230" y="372" text-anchor="end" font-size="30" fill="#ffffff" style="${sans}">0</text>`;
+                s += `<text x="1000" y="436" font-size="20" fill="${pal.nay}" style="${serif}">NOES</text>`;
+                s += `<text data-k="nay" x="1230" y="438" text-anchor="end" font-size="30" fill="#ffffff" style="${sans}">0</text>`;
+                s += `<text x="1000" y="520" font-size="38" font-weight="600" fill="${pal.abstain}" style="${sans}">ABSTAIN</text>`;
+                s += `<text data-k="abs" x="1230" y="520" text-anchor="end" font-size="38" fill="#ffffff" style="${sans}">0</text>`;
+                s += `<rect x="980" y="590" width="270" height="56" fill="#3b4560"/>`;
+                s += `<text x="1000" y="627" font-size="26" fill="#ffffff" style="${serif}">Voted</text>`;
+                s += `<text data-k="voted" x="1230" y="627" text-anchor="end" font-size="30" fill="#ffffff" style="${sans}">0</text>`;
+                return s;
+            },
+
+            /* ---------- 유럽의회 (사진: 파란 화면, 자료명 + 합계 + 점 배치도) ---------- */
+            buildEu(n) {
+                const W = 1200, H = 630, pal = this.state.palette;
+                const rows = Math.max(5, Math.min(12, Math.round(Math.sqrt(n / 5))));
+                const { seats, pitch } = this.genFan(n, { cx: 645, cy: 480, rIn: 105, rOut: 290, rows, a0: 197, a1: -17 });
+                const r = Math.max(1.4, Math.min(4.5, pitch * 0.36));
+                const mono = "font-family:'Lucida Console','Courier New',monospace";
+
+                let s = `<defs><linearGradient id="eu-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f50b4"/><stop offset="0.55" stop-color="#1e3a9c"/><stop offset="1" stop-color="#0a1a66"/></linearGradient></defs>`;
+                s += `<rect width="${W}" height="${H}" fill="url(#eu-bg)"/>`;
+                s += `<text data-k="title" x="${W / 2}" y="40" text-anchor="middle" font-size="30" font-weight="700" fill="#ffffff" style="${mono}"></text>`;
+                s += `<text x="${W / 2}" y="135" text-anchor="middle" font-size="48" font-weight="700" fill="#ffffff" style="${mono}">text as a whole</text>`;
+
+                // 좌측 합계: 손 아이콘(총 투표수) / + / − / ○
+                s += `<g transform="translate(192,190)" fill="#e6c78c"><rect x="6" y="12" width="30" height="24" rx="6"/><rect x="8" y="2" width="6" height="18" rx="3"/><rect x="16" y="-3" width="6" height="20" rx="3"/><rect x="24" y="1" width="6" height="18" rx="3"/><rect x="32" y="6" width="6" height="16" rx="3"/></g>`;
+                s += `<text data-k="total" x="250" y="228" font-size="40" font-weight="700" fill="#ffffff" style="${mono}">000</text>`;
+                s += `<g fill="${pal.aye}"><rect x="195" y="293" width="40" height="8" rx="1"/><rect x="211" y="277" width="8" height="40" rx="1"/></g>`;
+                s += `<text data-k="aye" x="250" y="316" font-size="40" font-weight="700" fill="#ffffff" style="${mono}">000</text>`;
+                s += `<rect x="195" y="384" width="40" height="8" rx="1" fill="${pal.nay}"/>`;
+                s += `<text data-k="nay" x="250" y="402" font-size="40" font-weight="700" fill="#ffffff" style="${mono}">000</text>`;
+                s += `<circle cx="215" cy="480" r="17" fill="none" stroke="${pal.abstain}" stroke-width="6"/>`;
+                s += `<text data-k="abs" x="250" y="494" font-size="40" font-weight="700" fill="#ffffff" style="${mono}">000</text>`;
+
+                seats.forEach((p, i) => {
+                    s += `<g data-seat="${i}"><circle class="s" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r.toFixed(2)}" fill="${pal.pending}"/></g>`;
+                });
+                return s;
+            },
+
+            // 의원 상태에 따라 좌석 색 갱신
+            paintSeats() {
+                const els = this.state.seatEls, pal = this.state.palette;
+                if (!els) return;
+                const present = this.state.presentIds;
+                this.state.members.forEach((m, i) => {
+                    const el = els[i];
+                    if (!el) return;
+                    let c;
+                    if (m.status === 'aye') c = pal.aye;
+                    else if (m.status === 'nay') c = pal.nay;
+                    else if (m.status === 'abstain') c = pal.abstain;
+                    else c = (!present || present.has(m.id)) ? pal.pending : pal.absent;
+                    el.shape.setAttribute('fill', c);
+                    if (el.num) el.num.setAttribute('fill', this.isLight(c) ? '#06210f' : '#ffffff');
+                });
+            },
+
+            renderSeatTheme(c) {
+                const t = this.state.theme, T = this.state.seatTexts;
+                if (!T) return;
+                const set = (k, v) => { if (T[k]) T[k].textContent = v; };
+                const voted = c.aye + c.nay + c.abstain;
+                const pad3 = v => String(v).padStart(3, '0');
+                this.paintSeats();
+                if (t === 'eu') {
+                    set('total', pad3(voted)); set('aye', pad3(c.aye)); set('nay', pad3(c.nay)); set('abs', pad3(c.abstain));
+                } else {
+                    set('aye', c.aye); set('nay', c.nay); set('abs', c.abstain);
+                    if (t === 'in') set('voted', voted);
+                    if (t === 'al') set('rest', c.absent);
+                }
+                this.updateSeatClock();
+            },
+
+            // 경과 시간 / 날짜·시각 (알바니아·인도 보드)
+            updateSeatClock() {
+                const T = this.state.seatTexts;
+                if (!T) return;
+                const now = new Date(), p2 = v => String(v).padStart(2, '0');
+                if (T.timer) {
+                    const end = this.state.voteEndTs || Date.now();
+                    const sec = this.state.voteStartTs ? Math.max(0, Math.floor((end - this.state.voteStartTs) / 1000)) : 0;
+                    T.timer.textContent = `${p2(Math.floor(sec / 60))}:${p2(sec % 60)}`;
+                }
+                if (T.date) T.date.textContent = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+                if (T.time) T.time.textContent = now.toLocaleTimeString('en-US');
             },
 
             create2DChart() {
