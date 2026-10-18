@@ -5,557 +5,572 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>나만의 표결</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+Armenian:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@600;700;900&family=Noto+Sans+Armenian:wght@500;700&family=Noto+Sans+Georgian:wght@400;700&family=Noto+Sans+Devanagari:wght@500&display=swap" rel="stylesheet">
     <style>
-        @font-face { font-family: 'Pretendard'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Thin.woff2') format('woff2'); font-weight: 100; font-display: swap; }
         @font-face { font-family: 'Pretendard'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
         @font-face { font-family: 'Pretendard'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
         @font-face { font-family: 'Pretendard'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Black.woff2') format('woff2'); font-weight: 900; font-display: swap; }
 
-        body {
-            font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
-            background-color: #000;
-        }
-
         :root {
+            /* 표결 색상 (설정 화면에서 변경) */
             --color-aye: #00ff00;
             --color-nay: #ff4444;
             --color-abstain: #ffcc00;
-        }
-        
-        .vote-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 10px 6px;
-        }
 
-        .kr-vote-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
-            gap: 8px 4px;
-        }
+            /* 설정 화면: 의사일정표(order paper) 팔레트 */
+            --paper: #e9edf2;
+            --sheet: #f8f9fb;
+            --ink: #172033;
+            --muted: #5b6577;
+            --rule: #c5cdd8;
+            --accent: #1d6b4f;
+            --accent-hover: #175a42;
+            --danger: #b3362f;
 
-        .vote-circle {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            flex-shrink: 0;
-            margin-top: 1px;
+            --sans: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+            --serif: 'Noto Serif KR', 'Nanum Myeongjo', 'AppleMyungjo', serif;
         }
 
-        .theme-ua .vote-circle {
-            width: 16px;
-            height: 10px;
-            border-radius: 2px;
-            margin-top: 2px;
-        }
-
-        .status-aye { background-color: var(--color-aye); } 
-        .status-nay { background-color: var(--color-nay); } 
-        .status-abstain { background-color: var(--color-abstain); } 
-        .status-absent { background-color: #374151; } 
-        
-        .theme-ua .status-absent { background-color: #e5e7eb; border: 1px solid #9ca3af; }
-
+        * { box-sizing: border-box; }
+        html, body { margin: 0; }
+        body { font-family: var(--sans); background: #000; color: #e5e7eb; }
+        .hidden { display: none !important; }
         .screen { display: none; }
-        .screen.active { display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        
-        #announcement-screen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #000; z-index: 9999;
+        .screen.active { display: flex; }
+        :focus-visible { outline: 3px solid #4c8dff; outline-offset: 2px; }
+
+        /* 한국어 번역 병기: 체크했을 때만 표시 */
+        body:not(.show-tr) .tr { display: none !important; }
+        .tr { font-size: 0.62em; opacity: 0.85; }
+
+        /* ========================= 설정 화면 ========================= */
+        #setup-screen { min-height: 100vh; width: 100%; flex-direction: column; background: var(--paper); color: var(--ink); }
+        .setup-bar {
+            position: sticky; top: 0; z-index: 20;
+            display: flex; align-items: center; justify-content: space-between; gap: 16px;
+            padding: 12px 28px; background: var(--paper); border-bottom: 1px solid var(--rule);
         }
-        
-        #export-dropdown { transition: all 0.2s ease-in-out; transform-origin: top right; }
-        #export-dropdown.hidden { opacity: 0; transform: scale(0.95); pointer-events: none; visibility: hidden; display: block; }
-        #export-dropdown:not(.hidden) { opacity: 1; transform: scale(1); visibility: visible; }
-        
-        .ua-digital-num { font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: 1.5rem; }
-        .cn-digital-text { font-family: 'SimHei', 'Microsoft YaHei', sans-serif; }
-        .fi-digital { font-family: 'Courier New', Courier, monospace; font-weight: bold; text-shadow: 0 0 5px rgba(250, 204, 21, 0.5); }
-        .ge-digital-num { font-family: 'Courier New', Courier, monospace; font-weight: bold; text-shadow: 0 0 8px rgba(255, 255, 255, 0.3); }
+        .brand { font-family: var(--serif); font-weight: 900; font-size: 22px; letter-spacing: -0.01em; }
+        .brand small { font-family: var(--sans); font-weight: 400; font-size: 13px; color: var(--muted); margin-left: 10px; }
+        .btn {
+            font: 700 14px/1 var(--sans); border-radius: 6px; padding: 11px 16px; cursor: pointer;
+            border: 1px solid var(--rule); background: var(--sheet); color: var(--ink);
+        }
+        .btn:hover { border-color: var(--ink); }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 12px 22px; font-size: 15px; }
+        .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 
-        .ru-dotted-leader { flex-grow: 1; border-bottom: 4px dotted white; margin: 0 16px; position: relative; top: -12px; opacity: 0.8; }
+        .setup-grid {
+            width: 100%; max-width: 1200px; margin: 0 auto; padding: 36px 28px 72px;
+            display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 56px;
+        }
+        @media (max-width: 920px) { .setup-grid { grid-template-columns: 1fr; gap: 40px; padding: 24px 16px 56px; } .setup-bar { padding: 10px 16px; } .brand small { display: none; } }
 
-        .hu-board-bg { background: linear-gradient(155deg, #ba4b63 25%, #95b3e8 45%, #95b3e8 55%, #4b7875 75%); }
-        .hu-text { color: #a4ebff; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+        .sec + .sec { margin-top: 40px; }
+        .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+        .sec-head h2 { margin: 0; font: 700 15px/1.3 var(--sans); color: var(--ink); }
+        .sec-head .meta { font-size: 13px; color: var(--muted); }
+
+        /* 안건 제목: 의사일정표의 의안 제목처럼 크게 */
+        #bill-title-input {
+            width: 100%; resize: none; border: 0; border-bottom: 2px solid var(--ink); border-radius: 0;
+            background: transparent; color: var(--ink); padding: 4px 0 10px;
+            font: 700 32px/1.3 var(--serif); letter-spacing: -0.01em;
+        }
+        #bill-title-input:focus { outline: none; border-bottom-color: var(--accent); }
+        @media (max-width: 920px) { #bill-title-input { font-size: 25px; } }
+
+        /* 의석 구성 막대 */
+        .seat-bar { display: flex; height: 18px; border-radius: 3px; overflow: hidden; background: var(--rule); }
+        .seat-bar > span { display: block; height: 100%; min-width: 2px; }
+        .seat-bar > span + span { border-left: 2px solid var(--paper); }
+        .seat-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+        .seat-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+        /* 당론 색상 */
+        .st-aye { background: #2f9e6b; }
+        .st-nay { background: #c94b44; }
+        .st-abstain { background: #d9a521; }
+        .st-boycott { background: #9aa3b0; }
+        .st-random { background: repeating-linear-gradient(135deg, #2f9e6b 0 5px, #c94b44 5px 10px); }
+        .st-partial_boycott_aye { background: repeating-linear-gradient(135deg, #2f9e6b 0 5px, #9aa3b0 5px 10px); }
+        .st-partial_boycott_nay { background: repeating-linear-gradient(135deg, #c94b44 0 5px, #9aa3b0 5px 10px); }
+        .st-partial_boycott_random { background: repeating-linear-gradient(135deg, #2f9e6b 0 4px, #c94b44 4px 8px, #9aa3b0 8px 12px); }
+
+        #party-list-editor { margin-top: 18px; border-top: 1px solid var(--rule); }
+        .party-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) 76px 168px 32px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+        .party-row .dot { width: 12px; height: 12px; border-radius: 3px; }
+        .party-row input, .party-row select {
+            width: 100%; font: 400 15px/1.2 var(--sans); color: var(--ink);
+            background: var(--sheet); border: 1px solid var(--rule); border-radius: 5px; padding: 8px 9px;
+        }
+        .party-row input[data-prop="seats"] { text-align: right; font-variant-numeric: tabular-nums; }
+        .party-row button { border: 0; background: none; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; border-radius: 4px; height: 32px; }
+        .party-row button:hover { color: var(--danger); background: #f3dcda; }
+        @media (max-width: 560px) {
+            .party-row { grid-template-columns: 12px minmax(0, 1fr) 64px 32px; }
+            .party-row select { grid-column: 2 / 4; }
+        }
+        .party-tools { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; }
+        .party-tools .group { display: flex; gap: 8px; position: relative; }
+        .hint { font-size: 12.5px; color: var(--muted); }
+        #export-dropdown { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 190px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 4px; box-shadow: 0 8px 24px rgba(23,32,51,.14); }
+        #export-dropdown button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 9px 10px; font: 400 14px var(--sans); color: var(--ink); border-radius: 4px; cursor: pointer; }
+        #export-dropdown button:hover { background: var(--paper); }
+
+        /* 전광판 선택: 투표용지 기표란 */
+        #theme-list { border-top: 1px solid var(--rule); }
+        .theme-opt {
+            width: 100%; display: grid; grid-template-columns: 26px 30px minmax(0, 1fr); gap: 12px; align-items: center;
+            padding: 11px 6px; border: 0; border-bottom: 1px solid var(--rule); background: none; text-align: left; cursor: pointer; color: var(--ink);
+        }
+        .theme-opt:hover { background: var(--sheet); }
+        .theme-opt .box { width: 22px; height: 22px; border: 2px solid var(--ink); border-radius: 3px; position: relative; background: var(--sheet); }
+        .theme-opt[aria-checked="true"] .box::after {
+            content: ''; position: absolute; left: 6px; top: 1px; width: 6px; height: 12px;
+            border: solid var(--accent); border-width: 0 3px 3px 0; transform: rotate(45deg);
+        }
+        .theme-opt[aria-checked="true"] { background: var(--sheet); }
+        .theme-opt .flag { font-size: 24px; line-height: 1; }
+        .theme-opt .nm { font: 700 15.5px/1.3 var(--sans); }
+        .theme-opt .nm .native { font-weight: 400; color: var(--muted); margin-left: 8px; font-size: 13.5px; }
+        .theme-opt .ds { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+        .colors { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+        .colors label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+        .colors input[type=color] { width: 34px; height: 34px; border: 1px solid var(--rule); border-radius: 6px; padding: 2px; background: var(--sheet); cursor: pointer; }
+        .check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; margin-top: 14px; cursor: pointer; line-height: 1.45; }
+        .check input { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--accent); flex: none; }
+        .check small { display: block; color: var(--muted); font-size: 12.5px; }
+
+        /* ========================= 안건 상정 화면 ========================= */
+        #announcement-screen { position: fixed; inset: 0; z-index: 50; background: #000; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 32px; text-align: center; }
+        #announcement-title { margin: 0; color: #fff; font: 700 clamp(30px, 4.6vw, 58px)/1.3 var(--serif); max-width: 22em; }
+        #announcement-meta { color: #8b95a7; font-size: clamp(14px, 1.6vw, 18px); }
+
+        /* ========================= 전광판 무대 ========================= */
+        .stage { position: fixed; inset: 0; flex-direction: column; background: #000; }
+        .stage-main { flex: 1; position: relative; overflow: hidden; min-height: 0; }
+        /* 모든 전광판은 1280x720 캔버스에 그리고 화면에 맞게 확대/축소 */
+        .canvas {
+            position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px;
+            transform: translate(-50%, -50%) scale(var(--s, 1)); transform-origin: center;
+            display: flex; flex-direction: column; overflow: hidden; background: #000;
+        }
+        .dock {
+            flex: none; min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+            padding: 8px 18px; background: #161c27; border-top: 1px solid #2a3344; color: #c8d0dc; font-size: 14px;
+        }
+        .dock .where { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .dock .where b { font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dock .flag { font-size: 20px; }
+        .dock .ctrl { display: flex; align-items: center; gap: 10px; flex: none; }
+        .dock input[type=range] { width: 130px; accent-color: #4c8dff; }
+        .dbtn { font: 700 13.5px/1 var(--sans); padding: 10px 14px; border-radius: 6px; border: 1px solid #3a4558; background: #222b3a; color: #e5e9f0; cursor: pointer; white-space: nowrap; }
+        .dbtn:hover { background: #2b3648; }
+        .dbtn.go { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .dbtn.go:hover { background: #1d4fd8; }
+        .dbtn.stop { border-color: #7f2a2a; color: #ffb4b4; }
+        #seat-decision { font-weight: 700; font-size: 17px; white-space: nowrap; }
+        @media (max-width: 640px) {
+            .dock { flex-wrap: wrap; padding: 8px 12px; }
+            .dock .where { order: -1; width: 100%; }
+            .dock .speed-label, #dock-result-title { display: none; }
+            .dock input[type=range] { width: 96px; }
+            #seat-decision { font-size: 14px; white-space: normal; width: 100%; }
+        }
+
+        .board { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* ---------- 대한민국 국회 ---------- */
+        .canvas.theme-kr { background: #10131b; }
+        .kr-header { display: flex; flex-direction: column; padding: 22px 28px 12px; }
+        .kr-title { color: #fff; font: 700 30px/1.25 var(--sans); margin: 0 0 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: left; }
+        .kr-counts { display: flex; width: 100%; border: 1px solid #1e40af; background: #151a28; font-size: 19px; }
+        .kr-counts > div { flex: 1; padding: 11px 0; display: flex; justify-content: center; gap: 6px; color: #d1d5db; }
+        .kr-counts > div + div { border-left: 1px solid #1e40af; }
+        .kr-counts b { color: #fff; }
+        .kr-counts .c-aye, .kr-counts .c-aye b { color: var(--color-aye); }
+        .kr-counts .c-nay, .kr-counts .c-nay b { color: var(--color-nay); }
+        .kr-counts .c-abs, .kr-counts .c-abs b { color: var(--color-abstain); }
+        .kr-res { justify-content: flex-start; padding: 40px 56px 36px; background: #1a1c23; }
+        .kr-pie { width: 300px; height: 300px; margin: 44px auto 0; }
+        .kr-legend { display: flex; gap: 64px; margin-top: auto; font: 700 26px var(--sans); color: #fff; }
+        .kr-legend i { display: inline-block; width: 24px; height: 24px; border-radius: 3px; margin-right: 12px; vertical-align: -3px; }
+
+        /* 명단 그리드 (한국/우크라이나) */
+        .grid-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 28px 20px; }
+        #grid-layout-container { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+        .kr-vote-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px 6px; align-content: start; }
+        .vote-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 8px; align-content: start; }
+        .vote-circle { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .theme-ua .vote-circle { width: 14px; height: 9px; border-radius: 2px; }
+        .status-aye { background-color: var(--color-aye); }
+        .status-nay { background-color: var(--color-nay); }
+        .status-abstain { background-color: var(--color-abstain); }
+        .status-absent { background-color: #374151; }
+        .theme-ua .status-absent { background-color: #e5e7eb; }
+
+        /* ---------- 우크라이나 최고 라다 ---------- */
+        .canvas.theme-ua { background: #0b1322; }
+        .ua-title { text-align: center; padding: 18px 28px 8px; }
+        .ua-title h1 { margin: 0; color: #7cc4ff; font: 700 28px/1.25 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ua-header { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 6px 28px 8px; padding: 10px; background: #001530; border: 2px solid #1e40af; border-radius: 6px; text-align: center; }
+        .ua-cell { border: 1px solid var(--c, #1d4ed8); background: color-mix(in srgb, var(--c, #1d4ed8) 20%, transparent); border-radius: 4px; padding: 6px; color: var(--c, #fff); }
+        .ua-lab { font: 700 13px/1.2 var(--sans); letter-spacing: 0.04em; margin-bottom: 2px; }
+        .ua-digital-num { font: 700 28px 'Courier New', monospace; }
+        .ua-res-wall { gap: 22px; }
+        .ua-res-title { margin: 0; color: #7cc4ff; font: 700 28px/1.3 var(--sans); max-width: 1100px; text-align: center; }
+        .ua-res-frame { position: relative; width: 880px; background: #1e1e1e; border: 18px solid #8b5a2b; padding: 44px 64px 40px; box-shadow: 0 18px 40px rgba(0,0,0,.6); }
+        .ua-time { position: absolute; top: 14px; right: 22px; font-size: 26px; color: #d1d5db; }
+        .ua-res-head { display: flex; justify-content: space-between; font-size: 30px; color: #b0c4de; margin-bottom: 30px; }
+        .ua-no { color: #ffb900; }
+        .ua-res-row { display: grid; grid-template-columns: 1fr 160px; gap: 32px; font: 500 38px/1.45 var(--sans); max-width: 600px; margin: 0 auto; white-space: nowrap; }
+        .ua-res-row span:first-child { text-align: right; }
+        .ua-res-row span:last-child { text-align: right; }
+        .ua-decision { margin-top: 40px; text-align: center; font: 500 50px var(--sans); letter-spacing: 0.04em; }
+
+        /* ---------- 중국 전국인민대표대회 ---------- */
+        .cn-board { background: #001bc2; border: 14px solid #d4d4d4; color: #fff; font-family: 'SimHei', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif; }
+        .cn-title { margin: 0 0 70px; font-weight: 400; font-size: 60px; line-height: 1.25; letter-spacing: 0.12em; text-align: center; max-width: 1120px; }
+        .cn-row { display: grid; grid-template-columns: 360px 360px 100px; align-items: center; font-size: 84px; line-height: 1.45; }
+        .cn-k { letter-spacing: 0.5em; padding-left: 20px; }
+        .cn-v { text-align: right; padding-right: 48px; }
+
+        /* ---------- 러시아 국가두마 ---------- */
+        .ru-board { background: #0000cc; color: #fff; font-family: Arial, 'Pretendard', sans-serif; text-align: center; }
+        .ru-h { font-size: 44px; letter-spacing: 0.02em; }
+        .ru-big { font-size: 74px; font-weight: 700; margin: 34px 0 18px; }
+        .ru-timer { font-size: 96px; font-variant-numeric: tabular-nums; }
+        .ru-sub { font-size: 28px; margin-top: 40px; max-width: 1100px; opacity: 0.9; }
+        .ru-head { font-size: 48px; line-height: 1.35; margin-bottom: 40px; }
+        .ru-lines { width: 1000px; font-size: 40px; text-align: left; }
+        .ru-line { display: flex; align-items: flex-end; line-height: 1.6; white-space: nowrap; }
+        .ru-dotted-leader { flex: 1; border-bottom: 4px dotted rgba(255,255,255,.8); margin: 0 16px 14px; }
+        .ru-line b { font-weight: 400; display: inline-block; text-align: right; font-variant-numeric: tabular-nums; }
+        .ru-line b.n { width: 90px; }
+        .ru-line b.p { width: 130px; }
+        .ru-decision { margin-top: 48px; font-size: 64px; font-weight: 700; letter-spacing: 0.04em; }
+
+        /* ---------- 핀란드 에두스쿤타 ---------- */
+        .fi-wall { background: #5f6f7a; }
+        .fi-frame { position: relative; display: flex; width: 800px; background: #788896; border: 16px solid #b8955e; padding: 18px; box-shadow: inset 0 0 10px rgba(0,0,0,.5), 0 16px 34px rgba(0,0,0,.7); }
+        .fi-frame::before { content: ''; position: absolute; inset: 2px; border: 1px solid #4a3b22; pointer-events: none; }
+        .fi-labels { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 10px 30px 10px 20px; }
+        .fi-row { height: 112px; display: flex; align-items: center; justify-content: space-between; }
+        .fi-word { font: 700 76px/1 var(--sans); color: #d4b068; letter-spacing: 0.1em; -webkit-text-stroke: 1px #4a3b22; }
+        .fi-orn { color: #d4b068; font-size: 34px; letter-spacing: 0.3em; }
+        .fi-digits { display: flex; flex-direction: column; gap: 8px; background: #b8955e; padding: 10px 8px; border: 2px solid #8a683a; }
+        .fi-cell { width: 196px; height: 112px; background: #0f0f0f; display: flex; align-items: center; justify-content: flex-end; padding: 0 18px; box-shadow: inset 0 0 15px #000; }
+        .fi-digital { font: 700 78px 'Courier New', monospace; color: #ffe066; text-shadow: 0 0 6px rgba(250,204,21,.5); }
+
+        /* ---------- 헝가리 국회 ---------- */
+        .hu-wall { background: #1a1a1a; }
+        .hu-frame { position: relative; width: 1040px; border: 16px solid #cda434; padding: 46px 60px; box-shadow: 0 16px 40px rgba(0,0,0,.7); background: linear-gradient(155deg, #ba4b63 25%, #95b3e8 45%, #95b3e8 55%, #4b7875 75%); }
+        .hu-frame::before { content: ''; position: absolute; inset: 0; border: 4px solid #222; pointer-events: none; }
+        .hu-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px 200px; align-items: baseline; font: 400 48px/1.45 var(--sans); color: #a4ebff; text-shadow: 1px 1px 3px rgba(0,0,0,.5); white-space: nowrap; }
+        .hu-row span:nth-child(n+2) { text-align: right; font-weight: 300; font-variant-numeric: tabular-nums; }
+        .hu-row.dim { color: #7ca9a9; }
+        .hu-sep { border-bottom: 1px solid rgba(255,255,255,.25); margin: 22px 0 26px; }
+
+        /* ---------- 조지아 의회 ---------- */
+        .ge-wall { background: #0b101d; }
+        .ge-frame { position: relative; width: 1000px; height: 640px; background: #121826; border: 10px solid #c0c0c0; border-radius: 6px; padding: 26px 36px; display: flex; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,.8), 0 10px 30px rgba(0,0,0,.9); font-family: 'Noto Sans Georgian', var(--sans); }
+        .ge-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #374151; padding-bottom: 14px; }
+        .ge-top h2 { margin: 0; color: #fff; font-size: 32px; }
+        .ge-clock { font: 700 32px 'Courier New', monospace; color: #4ade80; letter-spacing: 0.12em; text-align: right; }
+        .ge-date { font: 13px 'Courier New', monospace; color: #6b7280; text-align: right; }
+        .ge-bill { color: #facc15; font-size: 25px; font-weight: 700; text-align: center; margin: 18px 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #ge-bars-grid { flex: 1; display: grid; gap: 32px; align-items: end; width: 100%; margin: 0 auto; padding-bottom: 6px; }
+        .ge-col { display: flex; flex-direction: column; align-items: center; height: 100%; }
+        .ge-num { font: 700 40px 'Courier New', monospace; margin-bottom: 10px; }
+        .ge-tube { flex: 1; width: 66px; background: #18181b; border: 2px solid rgba(255,255,255,.08); border-radius: 4px 4px 0 0; display: flex; align-items: flex-end; overflow: hidden; }
+        .ge-tube > div { width: 100%; transition: height .3s; }
+        .ge-lab { font-size: 18px; font-weight: 700; margin-top: 10px; }
+        .ge-badge-wrap { text-align: center; margin-top: 12px; }
+
+        /* ---------- 좌석 배치형 (아르메니아·알바니아·인도·EU) ---------- */
+        .seat-board svg { width: 100%; height: 100%; display: block; }
     </style>
 </head>
-<body class="text-gray-200">
+<body>
 
-    <div id="app" class="w-full h-screen">
+    <div id="app">
 
-        <!-- Screen 1: Setup -->
-        <div id="setup-screen" class="screen active w-full max-w-3xl p-6 mx-auto">
-            <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-sky-400 mb-2">나만의 표결</h1>
-                <p class="text-slate-400">법안명과 정당, 그리고 세계 각국의 전광판 테마를 설정하세요.</p>
-            </div>
-            <div class="space-y-6">
-                <div>
-                    <label for="bill-title-input" class="block text-lg font-medium text-slate-300 mb-2">법안명</label>
-                    <textarea id="bill-title-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none h-20 resize-none">1. 상법 일부개정법률안</textarea>
-                </div>
-                
-                <div>
-                    <label for="theme-selector" class="block text-lg font-medium text-slate-300 mb-2">전광판 테마</label>
-                    <select id="theme-selector" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold text-lg">
-                        <option value="kr">🇰🇷 대한민국 국회 스타일 (분할 화면, 원형 표시)</option>
-                        <option value="ua">🇺🇦 우크라이나 최고 라다 스타일 (분할 보드, 사각 표시)</option>
-                        <option value="cn">🇨🇳 중국 전국인민대표대회 스타일 (파란 전광판, 집계 중심)</option>
-                        <option value="ru">🇷🇺 러시아 국가두마 스타일 (가결 파랑/부결 빨강)</option>
-                        <option value="fi">🇫🇮 핀란드 의회 스타일 (클래식 보드, 즉시 최종 표시)</option>
-                        <option value="hu">🇭🇺 헝가리 의회 스타일 (물결 배경 보드, 즉시 최종 표시)</option>
-                        <option value="ge">🇬🇪 조지아 국회 스타일 (차트형 실시간 성장 전광판)</option>
-                        <option value="am">🇦🇲 아르메니아 국회 스타일 (좌석 번호 원형 배치도)</option>
-                        <option value="al">🇦🇱 알바니아 의회 스타일 (의원 명패 전광판)</option>
-                        <option value="in">🇮🇳 인도 록사바 스타일 (Division 버튼 배치도)</option>
-                        <option value="eu">🇪🇺 유럽의회 스타일 (점 배치도 + 합계 표시)</option>
-                    </select>
-                </div>
+        <!-- ===================== 설정 화면 ===================== -->
+        <div id="setup-screen" class="screen active">
+            <header class="setup-bar">
+                <div class="brand">나만의 표결<small>세계 의회 전광판 시뮬레이터</small></div>
+                <button id="start-simulation-btn" class="btn btn-primary">표결 시작</button>
+            </header>
 
+            <main class="setup-grid">
                 <div>
-                    <h3 class="text-lg font-medium text-slate-300 mb-2">표결 색상 설정</h3>
-                    <div class="flex gap-6 bg-slate-900 border border-slate-700 rounded-lg p-3">
-                        <div class="flex items-center gap-2">
-                            <input type="color" id="color-aye" value="#00ff00" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0">
-                            <label for="color-aye" class="text-sm font-bold" style="color: var(--color-aye, #00ff00);">찬성</label>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="color" id="color-nay" value="#ff4444" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0">
-                            <label for="color-nay" class="text-sm font-bold" style="color: var(--color-nay, #ff4444);">반대</label>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="color" id="color-abstain" value="#ffcc00" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0">
-                            <label for="color-abstain" class="text-sm font-bold" style="color: var(--color-abstain, #ffcc00);">기권</label>
-                        </div>
-                    </div>
-                    <label class="flex items-center gap-2 mt-3 text-sm text-slate-400 cursor-pointer">
-                        <input type="checkbox" id="auth-colors" checked class="accent-sky-500">
-                        고증 색상 사용 (아르메니아·알바니아·인도·EU 테마는 실제 전광판 색상으로 표시)
-                    </label>
-                </div>
+                    <section class="sec">
+                        <div class="sec-head"><h2><label for="bill-title-input">안건</label></h2></div>
+                        <textarea id="bill-title-input" rows="1" spellcheck="false">1. 상법 일부개정법률안</textarea>
+                    </section>
 
-                <div>
-                    <div class="flex justify-between items-end mb-2">
-                        <h3 class="text-lg font-semibold">정당 및 의석수</h3>
-                        <p class="text-xs text-gray-500 text-right">파일 형식: 정당명, 의석수, 당론코드, 이탈률</p>
-                    </div>
-                    
-                    <div id="party-list-editor" class="space-y-2 mb-4 bg-slate-900 p-4 rounded-lg border border-slate-700 max-h-52 overflow-y-auto"></div>
-                    
-                    <div class="flex justify-end gap-2 items-start">
-                         <input type="file" id="party-file-input" accept=".csv,.txt" class="hidden">
-                         <button id="import-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">📂 파일 불러오기</button>
-                         
-                         <div class="relative inline-block text-left">
-                            <button id="export-menu-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm flex items-center">
-                                💾 목록 저장
-                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </button>
-                            <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                                <div class="py-1" role="menu">
-                                    <button id="export-txt-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">TXT로 저장</button>
-                                    <button id="export-csv-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900">CSV로 저장(엑셀안깨짐)</button>
+                    <section class="sec">
+                        <div class="sec-head"><h2>정당과 의석</h2><span class="meta" id="seat-total">0석</span></div>
+                        <div id="seat-bar" class="seat-bar" aria-hidden="true"></div>
+                        <div id="seat-legend" class="seat-legend"></div>
+                        <div id="party-list-editor"></div>
+                        <div class="party-tools">
+                            <button id="add-party-btn" class="btn">정당 추가</button>
+                            <div class="group">
+                                <input type="file" id="party-file-input" accept=".csv,.txt" class="hidden">
+                                <button id="import-btn" class="btn">파일 불러오기</button>
+                                <button id="export-menu-btn" class="btn" aria-haspopup="true">목록 저장 ▾</button>
+                                <div id="export-dropdown" class="hidden" role="menu">
+                                    <button id="export-txt-btn" role="menuitem">TXT로 저장</button>
+                                    <button id="export-csv-btn" role="menuitem">CSV로 저장 (엑셀 호환)</button>
                                 </div>
                             </div>
-                         </div>
-                         <button id="add-party-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">+ 정당 추가</button>
-                    </div>
+                        </div>
+                        <p class="hint">파일 형식: 한 줄에 정당명, 의석수, 당론, 이탈률 (예: 국민의힘, 115, nay, 0.01)</p>
+                    </section>
                 </div>
-                <button id="start-simulation-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-lg text-xl transition shadow-lg">시뮬레이션 시작</button>
-            </div>
+
+                <div>
+                    <section class="sec">
+                        <div class="sec-head"><h2>전광판</h2><span class="meta" id="theme-count"></span></div>
+                        <select id="theme-selector" class="hidden" aria-hidden="true" tabindex="-1"></select>
+                        <div id="theme-list" role="radiogroup" aria-label="전광판"></div>
+                    </section>
+
+                    <section class="sec">
+                        <div class="sec-head"><h2>표시</h2></div>
+                        <div class="colors">
+                            <label><input type="color" id="color-aye" value="#00ff00">찬성</label>
+                            <label><input type="color" id="color-nay" value="#ff4444">반대</label>
+                            <label><input type="color" id="color-abstain" value="#ffcc00">기권</label>
+                        </div>
+                        <label class="check"><input type="checkbox" id="auth-colors" checked>
+                            <span>실제 전광판 색상 사용<small>아르메니아·알바니아·인도·유럽의회는 사진 속 색상으로 표시합니다</small></span></label>
+                        <label class="check"><input type="checkbox" id="show-tr">
+                            <span>한국어 번역 함께 표시<small>외국 전광판의 항목명 옆에 작게 번역을 붙입니다</small></span></label>
+                    </section>
+                </div>
+            </main>
         </div>
-        
-        <!-- Screen 1.5: Bill Announcement -->
+
+        <!-- ===================== 안건 상정 ===================== -->
         <div id="announcement-screen" class="screen">
-            <h1 id="announcement-title" class="text-4xl lg:text-5xl font-bold text-center text-white p-8"></h1>
+            <h1 id="announcement-title"></h1>
+            <div id="announcement-meta"></div>
         </div>
 
-        <!-- Screen 2: Voting -->
-        <div id="voting-screen" class="screen max-w-screen-2xl mx-auto w-full h-full p-4">
-            <div id="voting-container" class="bg-gray-900/80 border border-gray-700 p-4 sm:p-6 rounded-lg shadow-2xl shadow-sky-500/10 w-full h-full flex flex-col justify-between">
-                <div>
-                    <header id="display-bill-title-container" class="text-center mb-4">
-                        <h1 id="display-bill-title" class="text-2xl sm:text-3xl font-bold text-sky-400"></h1>
+        <!-- ===================== 표결 화면 ===================== -->
+        <div id="voting-screen" class="screen stage">
+            <div class="stage-main">
+                <div id="voting-container" class="canvas">
+
+                    <header id="display-bill-title-container" class="ua-title hidden">
+                        <h1 id="display-bill-title"></h1>
                     </header>
-                    
-                    <!-- 한국식 (KR) 상단 보드 -->
-                    <div id="kr-header" class="hidden w-full flex-col mb-4">
-                        <div class="text-xl sm:text-2xl text-white font-bold mb-3 text-left pl-2" id="kr-bill-title-display"></div>
-                        <div class="flex w-full border border-blue-800 bg-[#151a28] text-sm sm:text-lg font-medium shadow-md">
-                            <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2">
-                                <span class="text-gray-300">재적:</span> <span id="kr-count-total" class="font-bold text-white">0</span><span class="text-gray-300"> 인</span>
+
+                    <!-- 대한민국 -->
+                    <div id="kr-header" class="hidden kr-header">
+                        <div id="kr-bill-title-display" class="kr-title"></div>
+                        <div class="kr-counts">
+                            <div><span>재적:</span><b id="kr-count-total">0</b><span>인</span></div>
+                            <div><span>재석:</span><b id="kr-count-present">0</b><span>인</span></div>
+                            <div class="c-aye"><span>찬성:</span><b id="kr-count-aye">0</b><span>인</span></div>
+                            <div class="c-nay"><span>반대:</span><b id="kr-count-nay">0</b><span>인</span></div>
+                            <div class="c-abs"><span>기권:</span><b id="kr-count-abstain">0</b><span>인</span></div>
+                        </div>
+                    </div>
+
+                    <!-- 우크라이나 -->
+                    <div id="ua-header" class="hidden ua-header">
+                        <div class="ua-cell" style="--c:#7cc4ff"><div class="ua-lab">ВСЬОГО<span class="tr"> 재적</span></div><div id="ua-count-total" class="ua-digital-num">0</div></div>
+                        <div class="ua-cell" style="--c:var(--color-aye)"><div class="ua-lab">ЗА<span class="tr"> 찬성</span></div><div id="ua-count-aye" class="ua-digital-num">0</div></div>
+                        <div class="ua-cell" style="--c:var(--color-nay)"><div class="ua-lab">ПРОТИ<span class="tr"> 반대</span></div><div id="ua-count-nay" class="ua-digital-num">0</div></div>
+                        <div class="ua-cell" style="--c:var(--color-abstain)"><div class="ua-lab">УТРИМАЛИСЬ<span class="tr"> 기권</span></div><div id="ua-count-abstain" class="ua-digital-num">0</div></div>
+                        <div class="ua-cell" style="--c:#9ca3af"><div class="ua-lab">НЕ ГОЛОСУВАЛИ<span class="tr"> 미투표</span></div><div id="ua-count-absent" class="ua-digital-num">0</div></div>
+                    </div>
+
+                    <!-- 중국 -->
+                    <div id="cn-board" class="hidden board cn-board">
+                        <h2 id="cn-display-bill-title" class="cn-title"></h2>
+                        <div>
+                            <div class="cn-row"><span class="cn-k">赞成</span><span id="cn-count-aye" class="cn-v"></span><span>票</span></div>
+                            <div class="cn-row"><span class="cn-k">反对</span><span id="cn-count-nay" class="cn-v"></span><span>票</span></div>
+                            <div class="cn-row"><span class="cn-k">弃权</span><span id="cn-count-abstain" class="cn-v"></span><span>票</span></div>
+                        </div>
+                    </div>
+
+                    <!-- 러시아: 표결 진행 화면 -->
+                    <div id="ru-board" class="hidden board ru-board">
+                        <div class="ru-h">Государственная Дума</div>
+                        <div class="ru-big">Идёт голосование<span class="tr"> 표결 진행 중</span></div>
+                        <div id="ru-vote-timer" class="ru-timer">00:00</div>
+                        <div id="ru-vote-title" class="ru-sub"></div>
+                    </div>
+
+                    <!-- 핀란드 -->
+                    <div id="fi-board" class="hidden board fi-wall">
+                        <div class="fi-frame">
+                            <div class="fi-labels">
+                                <div class="fi-row"><span class="fi-word">JAA</span><span class="fi-orn">❂</span></div>
+                                <div class="fi-row"><span class="fi-word">EI</span><span class="fi-orn">❂❂</span></div>
+                                <div class="fi-row"><span class="fi-word">TYHJIÄ</span></div>
+                                <div class="fi-row"><span class="fi-word">POISSA</span></div>
                             </div>
-                            <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2">
-                                <span class="text-gray-300">재석:</span> <span id="kr-count-present" class="font-bold text-white">0</span><span class="text-gray-300"> 인</span>
-                            </div>
-                            <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2" style="color: var(--color-aye)">
-                                <span>찬성:</span> <span id="kr-count-aye" class="font-bold">0</span><span> 인</span>
-                            </div>
-                            <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2" style="color: var(--color-nay)">
-                                <span>반대:</span> <span id="kr-count-nay" class="font-bold">0</span><span> 인</span>
-                            </div>
-                            <div class="flex-1 py-3 text-center flex justify-center items-center gap-2" style="color: var(--color-abstain)">
-                                <span>기권:</span> <span id="kr-count-abstain" class="font-bold">0</span><span> 인</span>
+                            <div class="fi-digits">
+                                <div class="fi-cell"><span id="fi-count-aye" class="fi-digital">---</span></div>
+                                <div class="fi-cell"><span id="fi-count-nay" class="fi-digital">---</span></div>
+                                <div class="fi-cell"><span id="fi-count-abstain" class="fi-digital">---</span></div>
+                                <div class="fi-cell"><span id="fi-count-absent" class="fi-digital">---</span></div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 우크라이나식 (UA) 상단 보드 -->
-                    <div id="ua-header" class="hidden w-full grid-cols-5 gap-2 bg-[#001530] border-2 border-blue-800 p-3 rounded-md text-center mb-4 uppercase font-bold tracking-wider">
-                        <div class="bg-[#002b5e] p-2 rounded border border-blue-700">
-                            <div class="text-xs text-blue-300 mb-1">재적 (Всього)</div>
-                            <div id="ua-count-total" class="ua-digital-num text-white">0</div>
-                        </div>
-                        <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-aye) 20%, transparent); border-color: var(--color-aye);">
-                            <div class="text-xs mb-1" style="color: var(--color-aye)">찬성 (ЗА)</div>
-                            <div id="ua-count-aye" class="ua-digital-num" style="color: var(--color-aye)">0</div>
-                        </div>
-                        <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-nay) 20%, transparent); border-color: var(--color-nay);">
-                            <div class="text-xs mb-1" style="color: var(--color-nay)">반대 (ПРОТИ)</div>
-                            <div id="ua-count-nay" class="ua-digital-num" style="color: var(--color-nay)">0</div>
-                        </div>
-                        <div class="p-2 rounded border" style="background-color: color-mix(in srgb, var(--color-abstain) 20%, transparent); border-color: var(--color-abstain);">
-                            <div class="text-xs mb-1" style="color: var(--color-abstain)">기권 (УТРИМ.)</div>
-                            <div id="ua-count-abstain" class="ua-digital-num" style="color: var(--color-abstain)">0</div>
-                        </div>
-                        <div class="bg-gray-800 p-2 rounded border border-gray-600">
-                            <div class="text-xs text-gray-400 mb-1">미투표 (НЕ ГОЛ.)</div>
-                            <div id="ua-count-absent" class="ua-digital-num text-gray-300">0</div>
+                    <!-- 헝가리 -->
+                    <div id="hu-board" class="hidden board hu-wall">
+                        <div class="hu-frame">
+                            <div class="hu-row"><span>Igen:<span class="tr"> 찬성</span></span><span id="hu-res-aye">---</span><span id="hu-res-aye-pct"></span></div>
+                            <div class="hu-row"><span>Nem:<span class="tr"> 반대</span></span><span id="hu-res-nay">---</span><span id="hu-res-nay-pct"></span></div>
+                            <div class="hu-row"><span>Tartózkodott:<span class="tr"> 기권</span></span><span id="hu-res-abstain">---</span><span id="hu-res-abstain-pct"></span></div>
+                            <div class="hu-sep"></div>
+                            <div class="hu-row"><span>Szavazott:<span class="tr"> 투표</span></span><span id="hu-res-total-voted">---</span><span id="hu-res-total-voted-pct"></span></div>
+                            <div class="hu-row dim"><span>Nem szavazott:<span class="tr"> 불참</span></span><span id="hu-res-absent">---</span><span></span></div>
                         </div>
                     </div>
 
-                    <!-- 중국식 (CN) 전체 전광판 -->
-                    <div id="cn-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#001bc2] p-8 sm:p-12 rounded shadow-inner border-[12px] border-[#d4d4d4]">
-                        <h2 id="cn-display-bill-title" class="text-4xl sm:text-6xl font-normal text-white mb-16 sm:mb-24 text-center break-keep leading-tight cn-digital-text tracking-widest"></h2>
-                        <div class="text-4xl sm:text-7xl space-y-12 sm:space-y-20 w-full max-w-4xl cn-digital-text text-white font-normal">
-                            <div class="flex items-center">
-                                <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">赞成</span>
-                                <span id="cn-count-aye" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                                <span class="w-1/6 text-left">票</span>
+                    <!-- 조지아 -->
+                    <div id="ge-board" class="hidden board ge-wall">
+                        <div class="ge-frame">
+                            <div class="ge-top">
+                                <div><h2>კენჭისყრის შედეგი<span class="tr"> 표결 결과</span></h2></div>
+                                <div><div id="ge-clock" class="ge-clock">00:00:00</div><div id="ge-date" class="ge-date">00.00.0000</div></div>
                             </div>
-                            <div class="flex items-center">
-                                <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">反对</span>
-                                <span id="cn-count-nay" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                                <span class="w-1/6 text-left">票</span>
+                            <div id="ge-bill-title" class="ge-bill"></div>
+                            <div id="ge-bars-grid">
+                                <div id="ge-col-aye" class="ge-col">
+                                    <span id="ge-count-aye" class="ge-num text-green-400">0</span>
+                                    <div class="ge-tube"><div id="ge-bar-aye" class="bg-gradient-to-t from-green-600 to-green-400 shadow-[0_0_12px_rgba(74,222,128,0.6)]" style="height:0%"></div></div>
+                                    <span class="ge-lab text-green-400">მომხრე<span class="tr"> 찬성</span></span>
+                                </div>
+                                <div id="ge-col-nay" class="ge-col">
+                                    <span id="ge-count-nay" class="ge-num text-red-400">0</span>
+                                    <div class="ge-tube"><div id="ge-bar-nay" class="bg-gradient-to-t from-red-600 to-red-400 shadow-[0_0_12px_rgba(248,113,113,0.6)]" style="height:0%"></div></div>
+                                    <span class="ge-lab text-red-400">წინააღმდეგი<span class="tr"> 반대</span></span>
+                                </div>
+                                <div id="ge-col-abstain" class="ge-col">
+                                    <span id="ge-count-abstain" class="ge-num text-yellow-400">0</span>
+                                    <div class="ge-tube"><div id="ge-bar-abstain" class="bg-gradient-to-t from-yellow-500 to-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)]" style="height:0%"></div></div>
+                                    <span class="ge-lab text-yellow-400">თავი შეიკავა<span class="tr"> 기권</span></span>
+                                </div>
+                                <div id="ge-col-quorum" class="ge-col">
+                                    <span id="ge-count-quorum" class="ge-num text-blue-400">0</span>
+                                    <div class="ge-tube"><div id="ge-bar-quorum" class="bg-gradient-to-t from-blue-600 to-blue-400 shadow-[0_0_12px_rgba(96,165,250,0.6)]" style="height:0%"></div></div>
+                                    <span class="ge-lab text-blue-400">კვორუმი<span class="tr"> 정족수</span></span>
+                                </div>
                             </div>
-                            <div class="flex items-center">
-                                <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">弃权</span>
-                                <span id="cn-count-abstain" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                                <span class="w-1/6 text-left">票</span>
-                            </div>
+                            <div class="ge-badge-wrap"><span id="ge-quorum-badge"></span></div>
                         </div>
                     </div>
 
-                    <!-- 러시아식 (RU) 대기 화면 -->
-                    <div id="ru-board" class="hidden flex-col items-center justify-center h-full w-full rounded-lg shadow-inner border-4 border-gray-700 bg-black">
-                        <div class="text-4xl text-white font-bold animate-pulse">Голосование... (투표 진행 중)</div>
-                    </div>
+                    <!-- 아르메니아 / 알바니아 / 인도 / 유럽의회: SVG 좌석 배치도 -->
+                    <div id="am-board" class="hidden board seat-board"><svg viewBox="0 0 1160 650" role="img" aria-label="아르메니아 국회 표결 전광판"></svg></div>
+                    <div id="al-board" class="hidden board seat-board"><svg viewBox="0 0 1280 720" role="img" aria-label="알바니아 의회 표결 전광판"></svg></div>
+                    <div id="in-board" class="hidden board seat-board"><svg viewBox="0 0 1280 720" role="img" aria-label="인도 록사바 표결 전광판"></svg></div>
+                    <div id="eu-board" class="hidden board seat-board"><svg viewBox="0 0 1200 630" role="img" aria-label="유럽의회 표결 전광판"></svg></div>
 
-                    <!-- 핀란드식 (FI) 전광판 -->
-                    <div id="fi-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#5f6f7a] p-4 sm:p-12 rounded-lg shadow-inner">
-                        <div class="w-full max-w-[650px] bg-[#788896] border-[14px] border-[#b8955e] p-3 sm:p-5 flex relative rounded-sm shadow-2xl" style="box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.8);">
-                            <div class="absolute inset-0 border border-[#4a3b22] m-[2px] pointer-events-none"></div>
-                            <div class="flex flex-col justify-around flex-grow py-4 pl-4 pr-6 z-10">
-                                <div class="flex justify-between items-center h-[70px] sm:h-[90px]">
-                                    <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">JAA</div>
-                                    <div class="text-[#d4b068] text-xl sm:text-3xl">❂</div>
-                                </div>
-                                <div class="flex justify-between items-center h-[70px] sm:h-[90px]">
-                                    <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">EI</div>
-                                    <div class="text-[#d4b068] text-xl sm:text-3xl flex gap-3"><span>❂</span><span>❂</span></div>
-                                </div>
-                                <div class="flex items-center h-[70px] sm:h-[90px]">
-                                    <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">TYHJIÄ</div>
-                                </div>
-                                <div class="flex items-center h-[70px] sm:h-[90px]">
-                                    <div class="text-4xl sm:text-6xl text-[#d4b068] font-bold tracking-widest font-sans" style="-webkit-text-stroke: 1px #4a3b22;">POISSA</div>
-                                </div>
-                            </div>
-                            <div class="flex flex-col z-10 bg-[#b8955e] p-1.5 gap-1.5 border-2 border-[#8a683a] rounded-sm shadow-md">
-                                <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
-                                    <span id="fi-count-aye" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider">---</span>
-                                </div>
-                                <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
-                                    <span id="fi-count-nay" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider">---</span>
-                                </div>
-                                <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
-                                    <span id="fi-count-abstain" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider">---</span>
-                                </div>
-                                <div class="bg-[#0f0f0f] w-[120px] sm:w-[150px] h-[70px] sm:h-[90px] flex items-center justify-end px-4 shadow-[inset_0_0_15px_rgba(0,0,0,1)] rounded-sm">
-                                    <span id="fi-count-absent" class="text-4xl sm:text-6xl text-[#ffe066] fi-digital tracking-wider">---</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 헝가리식 (HU) 전광판 -->
-                    <div id="hu-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#1a1a1a] p-4 sm:p-12 rounded-lg shadow-inner">
-                        <div class="w-full max-w-[850px] hu-board-bg border-[14px] border-[#cda434] p-8 sm:p-12 flex flex-col relative rounded-sm shadow-2xl">
-                            <div class="absolute inset-0 border-[4px] border-[#222] pointer-events-none"></div>
-                            <div class="absolute inset-[4px] border-[2px] border-[#e8c355] pointer-events-none opacity-60"></div>
-                            
-                            <div class="flex flex-col z-10 hu-text text-3xl sm:text-5xl font-sans tracking-wide space-y-5">
-                                <div class="flex items-center">
-                                    <span class="w-[45%]">Igen (찬성):</span>
-                                    <span id="hu-res-aye" class="w-[20%] text-right font-light">---</span>
-                                    <span id="hu-res-aye-pct" class="w-[35%] text-right font-light"></span>
-                                </div>
-                                <div class="flex items-center">
-                                    <span class="w-[45%]">Nem (반대):</span>
-                                    <span id="hu-res-nay" class="w-[20%] text-right font-light">---</span>
-                                    <span id="hu-res-nay-pct" class="w-[35%] text-right font-light"></span>
-                                </div>
-                                <div class="flex items-center">
-                                    <span class="w-[45%]">Tartózkodott (기권):</span>
-                                    <span id="hu-res-abstain" class="w-[20%] text-right font-light">---</span>
-                                    <span id="hu-res-abstain-pct" class="w-[35%] text-right font-light"></span>
-                                </div>
-                                
-                                <div class="h-6 border-b border-white/20 mb-6 w-full"></div>
-                                
-                                <div class="flex items-center mt-6">
-                                    <span class="w-[45%]">Szavazott (총투표):</span>
-                                    <span id="hu-res-total-voted" class="w-[20%] text-right font-light">---</span>
-                                    <span id="hu-res-total-voted-pct" class="w-[35%] text-right font-light"></span>
-                                </div>
-                                <div class="flex items-center mt-4 text-[#7ca9a9]">
-                                    <span class="w-[45%]">Nem szavazott (불참):</span>
-                                    <span id="hu-res-absent" class="w-[20%] text-right font-light">---</span>
-                                    <span class="w-[35%] text-right font-light"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 조지아식 (GE) 차트형 전광판 -->
-                    <div id="ge-board" class="hidden flex-col items-center justify-center h-full w-full bg-[#0b101d] p-4 sm:p-12 rounded-lg shadow-inner">
-                        <div class="w-full max-w-[850px] bg-[#121826] border-[10px] border-[#c0c0c0] p-6 sm:p-8 flex flex-col relative rounded-md shadow-2xl" style="box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.9);">
-                            <!-- Inner thin dark gold border -->
-                            <div class="absolute inset-0 border border-[#4a3b22] m-[2px] pointer-events-none"></div>
-                            
-                            <!-- Top Header containing clock and title -->
-                            <div class="flex justify-between items-center border-b border-gray-700 pb-4 mb-6">
-                                <div class="text-left">
-                                    <h2 class="text-2xl sm:text-3xl text-white font-bold tracking-wider font-sans">კენჭისყრის შედეგი</h2>
-                                    <p class="text-xs sm:text-sm text-gray-400 mt-1">표결 결과 (Result of the Vote)</p>
-                                </div>
-                                <div class="text-right">
-                                    <div id="ge-clock" class="text-xl sm:text-3xl font-mono text-[#4ade80] font-bold tracking-widest">00:00:00</div>
-                                    <p id="ge-date" class="text-xs text-gray-500 font-mono mt-1">00.00.0000</p>
-                                </div>
-                            </div>
-
-                            <!-- Bill Title inside Georgia Board -->
-                            <div class="text-center mb-6 z-10">
-                                <h3 id="ge-bill-title" class="text-lg sm:text-2xl font-bold text-[#facc15] truncate max-w-full"></h3>
-                            </div>
-
-                            <!-- 4 Vertical Charts Grid (Yes, No, Abstain, Quorum) - ID 추가 완료 -->
-                            <div id="ge-bars-grid" class="grid grid-cols-4 gap-4 sm:gap-8 flex-grow w-full max-w-3xl mx-auto items-end pb-4 mt-6 z-10">
-                                <!-- MOMKHRE (찬성) -->
-                                <div id="ge-col-aye" class="flex flex-col items-center h-[260px] sm:h-[320px]">
-                                    <span id="ge-count-aye" class="text-2xl sm:text-4xl text-green-400 font-bold mb-3 font-mono">0</span>
-                                    <div class="bg-[#18181b] border-2 border-green-500/20 w-[45px] sm:w-[65px] flex-grow flex items-end rounded-t shadow-inner overflow-hidden">
-                                        <div id="ge-bar-aye" class="w-full bg-gradient-to-t from-green-600 to-green-400 rounded-t shadow-[0_0_12px_rgba(74,222,128,0.6)] transition-all duration-300" style="height: 0%;"></div>
-                                    </div>
-                                    <span class="text-sm sm:text-lg text-green-400 font-bold mt-3 text-center">მომხრე</span>
-                                    <span class="text-[10px] text-gray-400 mt-0.5">찬성 (Yes)</span>
-                                </div>
-
-                                <!-- TSINAAGMDEGI (반대) -->
-                                <div id="ge-col-nay" class="flex flex-col items-center h-[260px] sm:h-[320px]">
-                                    <span id="ge-count-nay" class="text-2xl sm:text-4xl text-red-400 font-bold mb-3 font-mono">0</span>
-                                    <div class="bg-[#18181b] border-2 border-red-500/20 w-[45px] sm:w-[65px] flex-grow flex items-end rounded-t shadow-inner overflow-hidden">
-                                        <div id="ge-bar-nay" class="w-full bg-gradient-to-t from-red-600 to-red-400 rounded-t shadow-[0_0_12px_rgba(248,113,113,0.6)] transition-all duration-300" style="height: 0%;"></div>
-                                    </div>
-                                    <span class="text-sm sm:text-lg text-red-400 font-bold mt-3 text-center">წინააღმდეგი</span>
-                                    <span class="text-[10px] text-gray-400 mt-0.5">반대 (No)</span>
-                                </div>
-
-                                <!-- TAVI SHEIKAVA (기권) -->
-                                <div id="ge-col-abstain" class="flex flex-col items-center h-[260px] sm:h-[320px]">
-                                    <span id="ge-count-abstain" class="text-2xl sm:text-4xl text-yellow-400 font-bold mb-3 font-mono">0</span>
-                                    <div class="bg-[#18181b] border-2 border-yellow-500/20 w-[45px] sm:w-[65px] flex-grow flex items-end rounded-t shadow-inner overflow-hidden">
-                                        <div id="ge-bar-abstain" class="w-full bg-gradient-to-t from-yellow-500 to-[#facc15] rounded-t shadow-[0_0_12px_rgba(250,204,21,0.6)] transition-all duration-300" style="height: 0%;"></div>
-                                    </div>
-                                    <span class="text-sm sm:text-lg text-yellow-400 font-bold mt-3 text-center">თავი შეიკავა</span>
-                                    <span class="text-[10px] text-gray-400 mt-0.5">기권 (Abstain)</span>
-                                </div>
-
-                                <!-- KVORUMI (정족수) -->
-                                <div id="ge-col-quorum" class="flex flex-col items-center h-[260px] sm:h-[320px]">
-                                    <span id="ge-count-quorum" class="text-2xl sm:text-4xl text-blue-400 font-bold mb-3 font-mono">0</span>
-                                    <div class="bg-[#18181b] border-2 border-blue-500/20 w-[45px] sm:w-[65px] flex-grow flex items-end rounded-t shadow-inner overflow-hidden">
-                                        <div id="ge-bar-quorum" class="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t shadow-[0_0_12px_rgba(96,165,250,0.6)] transition-all duration-300" style="height: 0%;"></div>
-                                    </div>
-                                    <span class="text-sm sm:text-lg text-blue-400 font-bold mt-3 text-center">კვორუმი</span>
-                                    <span class="text-[10px] text-gray-400 mt-0.5">정족수 (Quorum)</span>
-                                </div>
-                            </div>
-
-                            <!-- Real-time Quorum Status Check badge -->
-                            <div class="mt-6 text-center z-10">
-                                <span id="ge-quorum-badge" class="bg-red-600/30 border border-red-500 text-red-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans">კვორუმი არ არის (정족수 미달)</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 아르메니아식 (AM): 좌석 번호 원형 배치도 -->
-                    <div id="am-board" class="hidden flex-col items-center justify-center h-full w-full">
-                        <svg viewBox="0 0 1160 650" class="rounded-lg shadow-2xl border border-slate-800" style="width:min(100%, calc(70vh * 1160 / 650)); aspect-ratio:1160/650;"></svg>
-                    </div>
-
-                    <!-- 알바니아식 (AL): 의원 명패 전광판 -->
-                    <div id="al-board" class="hidden flex-col items-center justify-center h-full w-full">
-                        <svg viewBox="0 0 1280 720" class="rounded-lg shadow-2xl border-[6px] border-[#2b2b2b]" style="width:min(100%, calc(70vh * 1280 / 720)); aspect-ratio:1280/720;"></svg>
-                    </div>
-
-                    <!-- 인도식 (IN): Division 버튼 배치도 -->
-                    <div id="in-board" class="hidden flex-col items-center justify-center h-full w-full">
-                        <svg viewBox="0 0 1280 720" class="rounded-lg shadow-2xl border-[6px] border-[#1c1f27]" style="width:min(100%, calc(70vh * 1280 / 720)); aspect-ratio:1280/720;"></svg>
-                    </div>
-
-                    <!-- 유럽의회식 (EU): 점 배치도 + 합계 -->
-                    <div id="eu-board" class="hidden flex-col items-center justify-center h-full w-full">
-                        <svg viewBox="0 0 1200 630" class="rounded-lg shadow-2xl border-[6px] border-[#cfd3d8]" style="width:min(100%, calc(70vh * 1200 / 630)); aspect-ratio:1200/630;"></svg>
-                    </div>
-
-                    <!-- 그리드 영역 (한국/우크라이나) -->
-                    <div id="grid-wrapper" class="bg-[#111] p-4 rounded-lg flex-grow overflow-y-auto border border-gray-800 w-full hidden">
-                        <div id="grid-layout-container" class="w-full">
+                    <!-- 명단 그리드 (대한민국 / 우크라이나) -->
+                    <div id="grid-wrapper" class="hidden grid-wrap">
+                        <div id="grid-layout-container">
                             <div id="member-grid-col1" class="kr-vote-grid"></div>
-                            <div id="member-grid-col2" class="kr-vote-grid hidden"></div>
+                            <div id="member-grid-col2" class="kr-vote-grid"></div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- 실시간 제어 패널 (HTML 누락 해결 완료) -->
-                <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-900 p-3 rounded-lg border border-slate-700 w-full hidden z-50" id="control-panel">
-                    <div class="flex items-center gap-3 text-sm text-slate-400 font-bold">
-                        <span>애니메이션 속도 조절</span>
-                        <input type="range" id="speed-slider" min="1" max="100" value="60" class="w-32 cursor-pointer accent-blue-500">
-                    </div>
-                    <div class="flex gap-2">
-                        <button id="skip-vote-btn" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold py-2 px-4 rounded transition">즉시 완료 (Skip)</button>
-                        <button id="cancel-vote-btn" class="bg-red-600 hover:bg-red-500 text-white text-sm font-bold py-2 px-4 rounded transition">표결 중단</button>
-                    </div>
+            <div id="control-panel" class="dock">
+                <div class="where"><span class="flag" id="dock-flag"></span><b id="dock-title"></b></div>
+                <div class="ctrl">
+                    <label class="speed-label" for="speed-slider">속도</label>
+                    <input type="range" id="speed-slider" min="1" max="100" value="60">
+                    <button id="skip-vote-btn" class="dbtn go">바로 집계</button>
+                    <button id="cancel-vote-btn" class="dbtn stop">표결 중단</button>
                 </div>
             </div>
         </div>
 
-        <!-- Screen 3: Results -->
-        <div id="results-screen" class="screen w-full max-w-5xl p-6 mx-auto">
-             
-             <!-- 한국형 (KR) 결과창 -->
-             <div id="kr-results-board" class="hidden w-full h-[80vh] bg-[#1a1c23] border-4 border-[#2a303c] p-6 sm:p-10 rounded-lg shadow-2xl flex-col justify-start items-center relative">
-                <div class="w-full text-left mb-6">
-                    <h2 id="kr-results-bill-title" class="text-2xl sm:text-3xl font-bold text-white tracking-wide"></h2>
-                </div>
-                
-                <div class="flex w-full border border-blue-800 bg-[#151a28] text-sm sm:text-lg font-medium shadow-md mb-12">
-                    <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2">
-                        <span class="text-gray-300">재적:</span> <span id="kr-res-total" class="font-bold text-white">0</span><span class="text-gray-300"> 인</span>
-                    </div>
-                    <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2">
-                        <span class="text-gray-300">재석:</span> <span id="kr-res-present" class="font-bold text-white">0</span><span class="text-gray-300"> 인</span>
-                    </div>
-                    <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2" style="color: var(--color-aye)">
-                        <span>찬성:</span> <span id="kr-res-aye" class="font-bold">0</span><span> 인</span>
-                    </div>
-                    <div class="flex-1 py-3 border-r border-blue-800 text-center flex justify-center items-center gap-2" style="color: var(--color-nay)">
-                        <span>반대:</span> <span id="kr-res-nay" class="font-bold">0</span><span> 인</span>
-                    </div>
-                    <div class="flex-1 py-3 text-center flex justify-center items-center gap-2" style="color: var(--color-abstain)">
-                        <span>기권:</span> <span id="kr-res-abstain" class="font-bold">0</span><span> 인</span>
-                    </div>
-                </div>
-                
-                <!-- 차트 영역 (작게 표시) -->
-                <div class="w-full max-w-[180px] sm:max-w-[220px] flex-grow flex items-center justify-center mb-8">
-                    <canvas id="results-chart"></canvas>
-                </div>
-                
-                <!-- 하단 범례 -->
-                <div class="flex justify-center items-center gap-8 sm:gap-16 w-full text-lg sm:text-2xl mt-auto pb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-6 h-6 rounded-sm shadow" style="background-color: var(--color-aye)"></div>
-                        <span class="text-white font-bold tracking-wider">찬성: <span id="kr-res-aye-pct">0.00%</span></span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div class="w-6 h-6 rounded-sm shadow" style="background-color: var(--color-nay)"></div>
-                        <span class="text-white font-bold tracking-wider">반대: <span id="kr-res-nay-pct">0.00%</span></span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div class="w-6 h-6 rounded-sm shadow" style="background-color: var(--color-abstain)"></div>
-                        <span class="text-white font-bold tracking-wider">기권: <span id="kr-res-abstain-pct">0.00%</span></span>
-                    </div>
-                </div>
-             </div>
+        <!-- ===================== 결과 화면 ===================== -->
+        <div id="results-screen" class="screen stage">
+            <div class="stage-main">
+                <div id="results-canvas" class="canvas">
 
-             <!-- 중국 (CN) 결과창 -->
-             <div id="cn-results-board" class="hidden flex-col items-center justify-center w-full h-[80vh] bg-[#001bc2] p-8 sm:p-12 rounded shadow-inner border-[12px] border-[#d4d4d4]">
-                <h2 id="cn-results-bill-title" class="text-4xl sm:text-6xl font-normal text-white mb-10 sm:mb-16 text-center break-keep leading-tight cn-digital-text tracking-widest"></h2>
-                
-                <div class="text-4xl sm:text-7xl space-y-12 sm:space-y-20 w-full max-w-4xl cn-digital-text text-white font-normal mt-8">
-                    <div class="flex items-center">
-                        <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">赞成</span>
-                        <span id="cn-res-aye" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                        <span class="w-1/6 text-left">票</span>
+                    <!-- 대한민국 결과 -->
+                    <div id="kr-results-board" class="hidden board kr-res">
+                        <h2 id="kr-results-bill-title" class="kr-title"></h2>
+                        <div class="kr-counts">
+                            <div><span>재적:</span><b id="kr-res-total">0</b><span>인</span></div>
+                            <div><span>재석:</span><b id="kr-res-present">0</b><span>인</span></div>
+                            <div class="c-aye"><span>찬성:</span><b id="kr-res-aye">0</b><span>인</span></div>
+                            <div class="c-nay"><span>반대:</span><b id="kr-res-nay">0</b><span>인</span></div>
+                            <div class="c-abs"><span>기권:</span><b id="kr-res-abstain">0</b><span>인</span></div>
+                        </div>
+                        <div class="kr-pie"><canvas id="results-chart" width="300" height="300"></canvas></div>
+                        <div class="kr-legend">
+                            <span><i style="background:var(--color-aye)"></i>찬성: <span id="kr-res-aye-pct">0.00%</span></span>
+                            <span><i style="background:var(--color-nay)"></i>반대: <span id="kr-res-nay-pct">0.00%</span></span>
+                            <span><i style="background:var(--color-abstain)"></i>기권: <span id="kr-res-abstain-pct">0.00%</span></span>
+                        </div>
                     </div>
-                    <div class="flex items-center">
-                        <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">反对</span>
-                        <span id="cn-res-nay" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                        <span class="w-1/6 text-left">票</span>
-                    </div>
-                    <div class="flex items-center">
-                        <span class="w-1/3 tracking-[0.5em] text-left pl-4 sm:pl-10">弃权</span>
-                        <span id="cn-res-abstain" class="w-1/2 text-right pr-8 sm:pr-12">0</span>
-                        <span class="w-1/6 text-left">票</span>
-                    </div>
-                </div>
-             </div>
 
-            <!-- 우크라이나 (UA) 결과창 -->
-            <div id="ua-results-board" class="hidden flex-col items-center justify-center w-full h-[80vh] p-4 sm:p-8">
-                <h2 id="ua-results-bill-title" class="text-2xl sm:text-3xl font-bold text-sky-400 mb-6 text-center break-keep"></h2>
-                <div class="relative w-full max-w-3xl bg-[#1e1e1e] p-8 sm:p-14 border-[16px] border-[#8b5a2b] shadow-2xl font-sans tracking-wide rounded-sm">
-                    <div class="absolute top-4 right-6 text-lg sm:text-2xl text-gray-300" id="ua-res-time">14:02</div>
-                    <div class="flex justify-between items-end text-xl sm:text-3xl text-[#b0c4de] mb-10 pb-2">
-                        <span>ПІДСУМКИ ГОЛОСУВАННЯ</span><span class="text-[#ffb900]">№ <span id="ua-res-num">39</span></span>
+                    <!-- 중국 결과 -->
+                    <div id="cn-results-board" class="hidden board cn-board">
+                        <h2 id="cn-results-bill-title" class="cn-title"></h2>
+                        <div>
+                            <div class="cn-row"><span class="cn-k">赞成</span><span id="cn-res-aye" class="cn-v">0</span><span>票</span></div>
+                            <div class="cn-row"><span class="cn-k">反对</span><span id="cn-res-nay" class="cn-v">0</span><span>票</span></div>
+                            <div class="cn-row"><span class="cn-k">弃权</span><span id="cn-res-abstain" class="cn-v">0</span><span>票</span></div>
+                        </div>
                     </div>
-                    <div class="space-y-4 text-2xl sm:text-4xl font-medium max-w-lg mx-auto">
-                        <div class="flex items-center" style="color: var(--color-aye);"><span class="w-2/3 text-right pr-8">ЗА</span><span id="ua-res-aye" class="w-1/3 text-right">0</span></div>
-                        <div class="flex items-center" style="color: var(--color-nay);"><span class="w-2/3 text-right pr-8">ПРОТИ</span><span id="ua-res-nay" class="w-1/3 text-right">0</span></div>
-                        <div class="flex items-center" style="color: var(--color-abstain);"><span class="w-2/3 text-right pr-8">УТРИМАЛИСЬ</span><span id="ua-res-abstain" class="w-1/3 text-right">0</span></div>
-                        <div class="flex items-center text-[#00e5ff]"><span class="w-2/3 text-right pr-8">НЕ ГОЛОСУВАЛИ</span><span id="ua-res-absent" class="w-1/3 text-right">0</span></div>
-                        <div class="flex items-center text-[#e6e6fa] pt-4"><span class="w-2/3 text-right pr-8">ВСЬОГО</span><span id="ua-res-total" class="w-1/3 text-right">0</span></div>
+
+                    <!-- 우크라이나 결과 -->
+                    <div id="ua-results-board" class="hidden board ua-res-wall" style="background:#0b1322">
+                        <h2 id="ua-results-bill-title" class="ua-res-title"></h2>
+                        <div class="ua-res-frame">
+                            <div class="ua-time" id="ua-res-time">14:02</div>
+                            <div class="ua-res-head"><span>ПІДСУМКИ ГОЛОСУВАННЯ</span><span class="ua-no">№ <span id="ua-res-num">39</span></span></div>
+                            <div class="ua-res-row" style="color:var(--color-aye)"><span>ЗА</span><span id="ua-res-aye">0</span></div>
+                            <div class="ua-res-row" style="color:var(--color-nay)"><span>ПРОТИ</span><span id="ua-res-nay">0</span></div>
+                            <div class="ua-res-row" style="color:var(--color-abstain)"><span>УТРИМАЛИСЬ</span><span id="ua-res-abstain">0</span></div>
+                            <div class="ua-res-row" style="color:#00e5ff"><span>НЕ ГОЛОСУВАЛИ</span><span id="ua-res-absent">0</span></div>
+                            <div class="ua-res-row" style="color:#e6e6fa; margin-top:14px"><span>ВСЬОГО</span><span id="ua-res-total">0</span></div>
+                            <div id="ua-res-decision" class="ua-decision">РІШЕННЯ ПРИЙНЯТО</div>
+                        </div>
                     </div>
-                    <div id="ua-res-decision" class="mt-16 text-center text-3xl sm:text-5xl font-medium uppercase tracking-wider">РІШЕННЯ ПРИНЯТО</div>
+
+                    <!-- 러시아 결과 -->
+                    <div id="ru-results-board" class="hidden board ru-board">
+                        <div class="ru-head"><div>Количественное голосование</div><div>Государственная Дума</div><div id="ru-res-time">16:14:12</div></div>
+                        <div class="ru-lines">
+                            <div class="ru-line"><span>За<span class="tr"> 찬성</span></span><i class="ru-dotted-leader"></i><b class="n" id="ru-res-aye">0</b>&nbsp;ч.<b class="p" id="ru-res-aye-pct">0.0%</b></div>
+                            <div class="ru-line"><span>Против<span class="tr"> 반대</span></span><i class="ru-dotted-leader"></i><b class="n" id="ru-res-nay">0</b>&nbsp;ч.<b class="p" id="ru-res-nay-pct">0.0%</b></div>
+                            <div class="ru-line"><span>Воздержалось<span class="tr"> 기권</span></span><i class="ru-dotted-leader"></i><b class="n" id="ru-res-abstain">0</b>&nbsp;ч.<b class="p" id="ru-res-abstain-pct">0.0%</b></div>
+                            <div class="ru-line"><span>Голосовало<span class="tr"> 투표</span></span><i class="ru-dotted-leader"></i><b class="n" id="ru-res-total-voted">0</b>&nbsp;ч.<b class="p" id="ru-res-total-voted-pct">0.0%</b></div>
+                        </div>
+                        <div id="ru-decision-banner" class="ru-decision">РЕШЕНИЕ ПРИНЯТО</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 러시아 (RU) 결과창 -->
-            <div id="ru-results-board" class="hidden flex-col items-center justify-center w-full h-[80vh] p-4 sm:p-8 rounded-lg shadow-inner font-sans bg-[#0000cc]">
-                <div class="text-2xl sm:text-5xl text-white text-center tracking-wide mb-8 sm:mb-12">
-                    <div>Количественное голосование</div><div class="mt-2 sm:mt-4">Государственная Дума</div><div id="ru-res-time" class="mt-4 sm:mt-6">16:14:12</div>
+            <div class="dock">
+                <div class="where"><span class="flag" id="result-flag"></span><b id="dock-result-title"></b></div>
+                <div id="seat-decision" aria-live="polite"></div>
+                <div class="ctrl">
+                    <button id="revote-btn" class="dbtn go">같은 조건으로 다시 표결</button>
+                    <button id="restart-btn" class="dbtn">설정으로 돌아가기</button>
                 </div>
-                <div class="text-xl sm:text-4xl text-white w-full max-w-4xl space-y-4 sm:space-y-6">
-                    <div class="flex justify-between items-end"><span>За <span class="text-gray-300 text-sm sm:text-xl ml-2">(찬성)</span></span><div class="ru-dotted-leader"></div><span><span id="ru-res-aye" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-aye-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
-                    <div class="flex justify-between items-end"><span>Против (반대)</span><div class="ru-dotted-leader"></div><span><span id="ru-res-nay" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-nay-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
-                    <div class="flex justify-between items-end"><span>Воздержалось (기권)</span><div class="ru-dotted-leader"></div><span><span id="ru-res-abstain" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-abstain-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
-                    <div class="flex justify-between items-end"><span>Голосовало (총투표)</span><div class="ru-dotted-leader"></div><span><span id="ru-res-total-voted" class="inline-block w-12 sm:w-20 text-right">0</span> ч. <span id="ru-res-total-voted-pct" class="inline-block w-16 sm:w-24 text-right">0.0%</span></span></div>
-                </div>
-                <div id="ru-decision-banner" class="mt-12 sm:mt-16 text-center font-bold text-4xl sm:text-6xl uppercase tracking-wider text-white">РЕШЕНИЕ ПРИНЯТО</div>
-            </div>
-
-            <!-- 좌석 배치형 테마 공통 가결/부결 표시 -->
-            <div id="seat-decision" class="hidden mt-4 text-center text-2xl sm:text-3xl font-bold tracking-wide w-full"></div>
-
-            <!-- 공통 재시작 컨테이너 -->
-            <div id="common-restart-container" class="mt-8 text-center w-full z-50 relative">
-                 <button id="restart-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-10 rounded-lg text-lg transition border border-gray-500 shadow-xl">다시 시작 (설정으로)</button>
             </div>
         </div>
 
@@ -602,12 +617,80 @@
                 eu: ['Adopted', 'Rejected']
             },
 
+            // 전광판 목록 (설정 화면 기표란과 하단 독 표시에 사용)
+            THEME_META: [
+                { id: 'kr', flag: '🇰🇷', name: '대한민국 국회', native: '국회 본회의장', desc: '의원 명단 전광판, 결과는 원그래프' },
+                { id: 'ua', flag: '🇺🇦', name: '우크라이나 최고 라다', native: 'Верховна Рада', desc: '의원 명단과 집계, 결과는 목재 액자 보드' },
+                { id: 'cn', flag: '🇨🇳', name: '중국 전국인민대표대회', native: '全国人民代表大会', desc: '파란 전광판, 집계만 표시' },
+                { id: 'ru', flag: '🇷🇺', name: '러시아 국가두마', native: 'Государственная Дума', desc: '가결은 파랑, 부결은 빨강 화면' },
+                { id: 'fi', flag: '🇫🇮', name: '핀란드 의회', native: 'Eduskunta', desc: '목재 액자 숫자판, 최종 결과만' },
+                { id: 'hu', flag: '🇭🇺', name: '헝가리 국회', native: 'Országgyűlés', desc: '물결 배경 보드, 최종 결과만' },
+                { id: 'ge', flag: '🇬🇪', name: '조지아 의회', native: 'საქართველოს პარლამენტი', desc: '막대 그래프와 정족수 표시' },
+                { id: 'am', flag: '🇦🇲', name: '아르메니아 국회', native: 'Ազգային ժողով', desc: '번호가 적힌 원형 좌석 배치도' },
+                { id: 'al', flag: '🇦🇱', name: '알바니아 의회', native: 'Kuvendi', desc: '의원 명패 전광판' },
+                { id: 'in', flag: '🇮🇳', name: '인도 록사바', native: 'लोक सभा', desc: 'Division 화면, 사각 버튼 배치도' },
+                { id: 'eu', flag: '🇪🇺', name: '유럽의회', native: 'European Parliament', desc: '점 배치도와 합계' }
+            ],
+            STANCE_LABELS: {
+                aye: '찬성 당론', nay: '반대 당론', abstain: '기권 당론', boycott: '전원 표결 불참',
+                partial_boycott_aye: '일부 불참 (찬성)', partial_boycott_nay: '일부 불참 (반대)',
+                partial_boycott_random: '일부 불참 (자유)', random: '자유 투표'
+            },
+
+            meta(id = this.state.theme) { return this.THEME_META.find(t => t.id === id) || this.THEME_META[0]; },
+
             init() {
                 this.cacheDOM();
+                this.buildThemeList();
                 this.bindEvents();
                 this.loadInitialParties();
                 this.startClock();
                 this.render();
+                window.addEventListener('resize', () => this.fitCanvases());
+            },
+
+            // 투표용지형 전광판 선택 목록 (숨긴 select와 값을 동기화)
+            buildThemeList() {
+                const sel = this.dom.themeSelector;
+                sel.innerHTML = this.THEME_META.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                sel.value = this.state.theme;
+                this.dom.themeList.innerHTML = this.THEME_META.map(t => `
+                    <button type="button" class="theme-opt" role="radio" data-theme="${t.id}" aria-checked="${t.id === sel.value}">
+                        <span class="box" aria-hidden="true"></span>
+                        <span class="flag" aria-hidden="true">${t.flag}</span>
+                        <span><span class="nm">${t.name}<span class="native">${t.native}</span></span><span class="ds">${t.desc}</span></span>
+                    </button>`).join('');
+                this.dom.themeCount.textContent = `${this.THEME_META.length}개 의회`;
+            },
+
+            selectTheme(id) {
+                this.dom.themeSelector.value = id;
+                this.dom.themeList.querySelectorAll('.theme-opt').forEach(b => b.setAttribute('aria-checked', String(b.dataset.theme === id)));
+            },
+
+            // 1280x720 캔버스를 화면 크기에 맞춰 확대/축소
+            fitCanvases() {
+                document.querySelectorAll('.stage-main').forEach(main => {
+                    const c = main.querySelector('.canvas');
+                    if (!c || !main.clientWidth) return;
+                    const s = Math.min(main.clientWidth / 1280, main.clientHeight / 720);
+                    c.style.setProperty('--s', s.toFixed(4));
+                });
+            },
+
+            // 설정 화면 의석 구성 막대
+            renderSeatBar() {
+                const parties = this.state.parties;
+                const total = parties.reduce((a, p) => a + (p.seats || 0), 0);
+                this.dom.seatTotal.textContent = `재적 ${total}석`;
+                this.dom.seatBar.innerHTML = total ? parties.filter(p => p.seats > 0).map(p =>
+                    `<span class="st-${p.stance}" style="flex:${p.seats}" title="${this.esc(p.name)} ${p.seats}석"></span>`).join('') : '';
+                const used = [...new Set(parties.map(p => p.stance))];
+                this.dom.seatLegend.innerHTML = used.map(s => `<span><i class="st-${s}"></i>${this.STANCE_LABELS[s]}</span>`).join('');
+                this.dom.partyListEditor.querySelectorAll('.party-row').forEach(row => {
+                    const p = parties.find(x => x.id == row.dataset.id);
+                    if (p) row.querySelector('.dot').className = `dot st-${p.stance}`;
+                });
             },
 
             cacheDOM() {
@@ -623,7 +706,22 @@
                     colorNay: document.getElementById('color-nay'),
                     colorAbstain: document.getElementById('color-abstain'),
                     authColors: document.getElementById('auth-colors'),
+                    showTr: document.getElementById('show-tr'),
                     seatDecision: document.getElementById('seat-decision'),
+                    themeList: document.getElementById('theme-list'),
+                    themeCount: document.getElementById('theme-count'),
+                    seatBar: document.getElementById('seat-bar'),
+                    seatLegend: document.getElementById('seat-legend'),
+                    seatTotal: document.getElementById('seat-total'),
+                    announcementMeta: document.getElementById('announcement-meta'),
+                    dockFlag: document.getElementById('dock-flag'),
+                    dockTitle: document.getElementById('dock-title'),
+                    resultFlag: document.getElementById('result-flag'),
+                    dockResultTitle: document.getElementById('dock-result-title'),
+                    revoteBtn: document.getElementById('revote-btn'),
+                    resultsCanvas: document.getElementById('results-canvas'),
+                    ruVoteTimer: document.getElementById('ru-vote-timer'),
+                    ruVoteTitle: document.getElementById('ru-vote-title'),
                     billTitleInput: document.getElementById('bill-title-input'),
                     announcementTitle: document.getElementById('announcement-title'),
                     partyListEditor: document.getElementById('party-list-editor'),
@@ -754,6 +852,26 @@
             },
 
             bindEvents() {
+                this.dom.themeList.addEventListener('click', (e) => {
+                    const b = e.target.closest('.theme-opt');
+                    if (b) this.selectTheme(b.dataset.theme);
+                });
+                // 화살표 키로 기표란 이동 (라디오 그룹 동작)
+                this.dom.themeList.addEventListener('keydown', (e) => {
+                    if (!['ArrowDown', 'ArrowUp'].includes(e.key)) return;
+                    e.preventDefault();
+                    const opts = [...this.dom.themeList.querySelectorAll('.theme-opt')];
+                    const i = opts.indexOf(document.activeElement);
+                    const next = opts[(i + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length];
+                    next.focus(); this.selectTheme(next.dataset.theme);
+                });
+                this.dom.partyListEditor.addEventListener('input', () => { this.updatePartiesFromDOM(); this.renderSeatBar(); });
+                // 안건 제목 칸 높이를 내용에 맞춤
+                const grow = () => { const t = this.dom.billTitleInput; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
+                this.dom.billTitleInput.addEventListener('input', grow);
+                requestAnimationFrame(grow);
+                this.dom.showTr.addEventListener('change', () => document.body.classList.toggle('show-tr', this.dom.showTr.checked));
+                this.dom.revoteBtn.addEventListener('click', () => { this.reset(); this.startSimulation(); });
                 this.dom.addPartyBtn.addEventListener('click', () => this.addParty());
                 this.dom.importBtn.addEventListener('click', () => this.dom.partyFileInput.click());
                 
@@ -817,6 +935,12 @@
                         this.dom.geDate.textContent = `${day}.${month}.${year}`;
                     }
                     this.updateSeatClock();
+                    // 러시아 표결 진행 화면: 경과 시간
+                    if (this.state.theme === 'ru' && this.state.voteStartTs) {
+                        const end = this.state.voteEndTs || Date.now();
+                        const sec = Math.max(0, Math.floor((end - this.state.voteStartTs) / 1000));
+                        this.dom.ruVoteTimer.textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+                    }
                 };
                 setInterval(updateClocks, 1000);
                 updateClocks();
@@ -909,83 +1033,38 @@
 
             applyTheme() {
                 this.state.theme = this.dom.themeSelector.value;
-                
+                const t = this.state.theme;
+
                 const allBoards = [
-                    this.dom.krHeader, this.dom.uaHeader, this.dom.cnBoard, this.dom.ruBoard, this.dom.fiBoard, this.dom.huBoard, this.dom.geBoard,
-                    this.dom.krResultsBoard, this.dom.uaResultsBoard, this.dom.cnResultsBoard, this.dom.ruResultsBoard,
-                    this.dom.amBoard, this.dom.alBoard, this.dom.inBoard, this.dom.euBoard
+                    this.dom.titleContainer, this.dom.krHeader, this.dom.uaHeader, this.dom.gridWrapper,
+                    this.dom.cnBoard, this.dom.ruBoard, this.dom.fiBoard, this.dom.huBoard, this.dom.geBoard,
+                    this.dom.amBoard, this.dom.alBoard, this.dom.inBoard, this.dom.euBoard,
+                    this.dom.krResultsBoard, this.dom.uaResultsBoard, this.dom.cnResultsBoard, this.dom.ruResultsBoard
                 ];
-                allBoards.forEach(el => {
-                    if (el) { el.classList.add('hidden'); el.classList.remove('flex', 'grid'); }
-                });
-                
-                this.dom.votingContainer.className = 'bg-gray-900/80 border border-gray-700 p-4 sm:p-6 rounded-lg shadow-2xl shadow-sky-500/10 w-full h-full flex flex-col';
-                this.dom.titleContainer.classList.remove('hidden');
-                this.dom.gridWrapper.classList.remove('hidden');
-                this.dom.controlPanel.classList.remove('hidden');
-                this.dom.controlPanel.classList.add('flex');
-                
-                if (this.state.theme === 'kr') {
-                    this.dom.krHeader.classList.remove('hidden');
-                    this.dom.krHeader.classList.add('flex');
-                    this.dom.titleContainer.classList.add('hidden'); 
-                    this.dom.gridLayoutContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-x-6 w-full';
+                allBoards.forEach(el => el && el.classList.add('hidden'));
+
+                // 캔버스에 테마 클래스 부여 (배경색, 우크라이나 사각 표시 등)
+                this.dom.votingContainer.className = `canvas theme-${t}`;
+                this.dom.resultsCanvas.className = `canvas theme-${t}`;
+                const show = el => el.classList.remove('hidden');
+
+                if (t === 'kr') {
+                    show(this.dom.krHeader); show(this.dom.gridWrapper);
                     this.dom.memberGridCol1.className = 'kr-vote-grid';
                     this.dom.memberGridCol2.className = 'kr-vote-grid';
-                    this.dom.memberGridCol2.classList.remove('hidden');
-                }
-                else if (this.state.theme === 'ua') {
-                    this.dom.votingContainer.classList.add('theme-ua');
-                    this.dom.uaHeader.classList.remove('hidden');
-                    this.dom.uaHeader.classList.add('grid');
-                    this.dom.gridLayoutContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-x-6 w-full'; 
+                } else if (t === 'ua') {
+                    show(this.dom.titleContainer); show(this.dom.uaHeader); show(this.dom.gridWrapper);
                     this.dom.memberGridCol1.className = 'vote-grid';
                     this.dom.memberGridCol2.className = 'vote-grid';
-                    this.dom.memberGridCol2.classList.remove('hidden');
-                } 
-                else if (this.state.theme === 'cn') {
-                    this.dom.votingContainer.className = 'w-full h-full flex flex-col'; 
-                    this.dom.titleContainer.classList.add('hidden');
-                    this.dom.gridWrapper.classList.add('hidden');
-                    this.dom.cnBoard.classList.remove('hidden'); 
-                    this.dom.cnBoard.classList.add('flex');
-                } 
-                else if (this.state.theme === 'ru') {
-                    this.dom.votingContainer.className = 'w-full h-full flex flex-col'; 
-                    this.dom.titleContainer.classList.add('hidden');
-                    this.dom.gridWrapper.classList.add('hidden');
-                    this.dom.ruBoard.classList.remove('hidden'); 
-                    this.dom.ruBoard.classList.add('flex');
+                } else {
+                    show(this.dom[`${t}Board`]);
                 }
-                else if (this.state.theme === 'fi') {
-                    this.dom.votingContainer.className = 'w-full h-full flex flex-col'; 
-                    this.dom.titleContainer.classList.add('hidden');
-                    this.dom.gridWrapper.classList.add('hidden');
-                    this.dom.fiBoard.classList.remove('hidden'); 
-                    this.dom.fiBoard.classList.add('flex');
-                }
-                else if (this.state.theme === 'hu') {
-                    this.dom.votingContainer.className = 'w-full h-full flex flex-col'; 
-                    this.dom.titleContainer.classList.add('hidden');
-                    this.dom.gridWrapper.classList.add('hidden');
-                    this.dom.huBoard.classList.remove('hidden'); 
-                    this.dom.huBoard.classList.add('flex');
-                }
-                else if (this.state.theme === 'ge') {
-                    this.dom.votingContainer.className = 'w-full h-full flex flex-col'; 
-                    this.dom.titleContainer.classList.add('hidden');
-                    this.dom.gridWrapper.classList.add('hidden');
-                    this.dom.geBoard.classList.remove('hidden');
-                    this.dom.geBoard.classList.add('flex');
-                }
-                else if (this.isSeatTheme()) {
-                    this.dom.votingContainer.className = 'w-full h-full flex flex-col';
-                    this.dom.titleContainer.classList.add('hidden');
-                    this.dom.gridWrapper.classList.add('hidden');
-                    const board = this.dom[`${this.state.theme}Board`];
-                    board.classList.remove('hidden');
-                    board.classList.add('flex');
-                }
+
+                const m = this.meta(t);
+                this.dom.dockFlag.textContent = m.flag;
+                this.dom.resultFlag.textContent = m.flag;
+                this.dom.dockTitle.textContent = this.dom.dockResultTitle.textContent = this.dom.billTitleInput.value;
+                this.dom.announcementMeta.innerHTML = `${m.flag} ${m.name}<span style="margin-left:12px;opacity:.65">${m.native}</span>`;
             },
 
             startSimulation() {
@@ -1007,7 +1086,11 @@
                 this.state.voteEndTs = null;
                 this.state.seatEls = null;
                 this.state.seatTexts = null;
-                this.dom.seatDecision.classList.add('hidden');
+                this.dom.seatDecision.textContent = '';
+                this.dom.ruVoteTitle.textContent = this.state.billTitle;
+                this.dom.ruVoteTimer.textContent = '00:00';
+                this.dom.cnCounts.aye.textContent = this.dom.cnCounts.nay.textContent = this.dom.cnCounts.abstain.textContent = '';
+                this.dom.cnDisplayBillTitle.textContent = this.state.billTitle;
 
                 if (this.state.theme === 'fi') {
                     this.dom.fiCounts.aye.textContent = '---';
@@ -1217,7 +1300,6 @@
                 this.state.chart = null;
                 this.state.members = [];
                 this.state.voteResults = {};
-                this.dom.controlPanel.classList.add('hidden');
                 
                 // 결과 화면으로 옮겨졌던 전광판을 원래 위치로 복귀
                 this.boardHome.forEach((home, board) => {
@@ -1227,7 +1309,7 @@
                         home.appendChild(board);
                     }
                 });
-                this.dom.seatDecision.classList.add('hidden');
+                this.dom.seatDecision.textContent = '';
                 this.state.voteStartTs = null;
                 this.state.voteEndTs = null;
 
@@ -1238,6 +1320,7 @@
                 this.state.currentScreen = screenName;
                 Object.values(this.dom.screens).forEach(screen => screen.classList.remove('active'));
                 this.dom.screens[screenName].classList.add('active');
+                this.fitCanvases();
             },
 
             render() {
@@ -1246,23 +1329,19 @@
             },
             
             renderPartyEditor() {
+                const opts = Object.entries(this.STANCE_LABELS);
                 this.dom.partyListEditor.innerHTML = this.state.parties.map(p => `
-                    <div class="party-row flex items-center gap-2" data-id="${p.id}">
-                        <input data-prop="name" type="text" value="${p.name}" class="flex-grow bg-slate-800 border border-slate-600 rounded px-2 py-1">
-                        <input data-prop="seats" type="number" value="${p.seats}" class="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1">
-                        <select data-prop="stance" class="w-48 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm">
-                            <option value="aye" ${p.stance === 'aye' ? 'selected' : ''}>찬성 당론</option>
-                            <option value="nay" ${p.stance === 'nay' ? 'selected' : ''}>반대 당론</option>
-                            <option value="abstain" ${p.stance === 'abstain' ? 'selected' : ''}>기권 당론</option>
-                            <option value="boycott" ${p.stance === 'boycott' ? 'selected' : ''}>전원 표결 불참</option>
-                            <option value="partial_boycott_aye" ${p.stance === 'partial_boycott_aye' ? 'selected' : ''}>일부 불참 (찬성)</option>
-                            <option value="partial_boycott_nay" ${p.stance === 'partial_boycott_nay' ? 'selected' : ''}>일부 불참 (반대)</option>
-                            <option value="partial_boycott_random" ${p.stance === 'partial_boycott_random' ? 'selected' : ''}>일부 불참 (자유)</option>
-                            <option value="random" ${p.stance === 'random' ? 'selected' : ''}>자유 투표</option>
+                    <div class="party-row" data-id="${p.id}">
+                        <span class="dot st-${p.stance}" aria-hidden="true"></span>
+                        <input data-prop="name" type="text" value="${this.esc(p.name)}" aria-label="정당명">
+                        <input data-prop="seats" type="number" min="0" value="${p.seats}" aria-label="의석수">
+                        <select data-prop="stance" aria-label="당론">
+                            ${opts.map(([v, l]) => `<option value="${v}" ${p.stance === v ? 'selected' : ''}>${l}</option>`).join('')}
                         </select>
-                        <button data-action="remove" data-id="${p.id}" class="text-red-500 hover:text-red-400 font-bold py-1 px-2 text-xl">&times;</button>
+                        <button data-action="remove" data-id="${p.id}" aria-label="${this.esc(p.name)} 삭제" title="삭제">&times;</button>
                     </div>
                 `).join('');
+                this.renderSeatBar();
             },
 
             renderVotingScreen() {
@@ -1295,7 +1374,7 @@
                         return `
                         <div class="flex items-center gap-1.5 justify-start overflow-hidden">
                             <div class="vote-circle status-${member.status}"></div>
-                            <span class="text-[14px] font-bold truncate ${tc}" style="${inlineStyle}">${member.party}</span>
+                            <span class="text-[13px] leading-[17px] font-bold truncate ${tc}" style="${inlineStyle}">${this.esc(member.party)}</span>
                         </div>`;
                     }).join('');
 
@@ -1318,7 +1397,7 @@
                         if(member.status === 'nay') hi = 'color: var(--color-nay);';
                         if(member.status === 'abstain') hi = 'color: var(--color-abstain);';
                         
-                        return `<div class="flex items-center gap-1.5 overflow-hidden" title="${member.party}"><div class="vote-circle status-${member.status}"></div><span class="text-xs truncate ${tc}">${member.party}</span><span class="text-[10px] whitespace-nowrap opacity-90" style="${hi}">(${statusTextMap[member.status]})</span></div>`;
+                        return `<div class="flex items-center gap-1.5 overflow-hidden" title="${this.esc(member.party)}"><div class="vote-circle status-${member.status}"></div><span class="text-[11px] leading-[13.5px] truncate ${tc}">${this.esc(member.party)}</span><span class="text-[9.5px] leading-[13.5px] whitespace-nowrap opacity-90 ml-auto" style="${hi}">(${statusTextMap[member.status]})</span></div>`;
                     }).join('');
 
                     const midIndex = Math.ceil(total / 2);
@@ -1347,11 +1426,11 @@
 
                     const requiredQuorum = Math.ceil(total / 2);
                     if (present >= requiredQuorum) {
-                        this.dom.geQuorumBadge.textContent = "კვორუმი არის (정족수 충족)";
-                        this.dom.geQuorumBadge.className = "bg-green-600/30 border border-green-500 text-green-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans transition-all duration-300";
+                        this.dom.geQuorumBadge.innerHTML = 'კვორუმი არის<span class="tr"> 정족수 충족</span>';
+                        this.dom.geQuorumBadge.className = "bg-green-600/30 border border-green-500 text-green-400 px-5 py-2 rounded-full text-[17px] font-bold tracking-wide font-sans transition-all duration-300";
                     } else {
-                        this.dom.geQuorumBadge.textContent = "კვორუმი არ არის (정족수 미달)";
-                        this.dom.geQuorumBadge.className = "bg-red-600/30 border border-red-500 text-red-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans transition-all duration-300";
+                        this.dom.geQuorumBadge.innerHTML = 'კვორუმი არ არის<span class="tr"> 정족수 미달</span>';
+                        this.dom.geQuorumBadge.className = "bg-red-600/30 border border-red-500 text-red-400 px-5 py-2 rounded-full text-[17px] font-bold tracking-wide font-sans transition-all duration-300";
                     }
                 }
                 else if (this.isSeatTheme()) {
@@ -1362,7 +1441,8 @@
             renderResultsScreen() {
                 this.dom.krResultsBillTitle.textContent = this.state.billTitle;
                 this.dom.cnResultsBillTitle.textContent = this.state.billTitle;
-                this.dom.controlPanel.classList.add('hidden');
+                // 결과 화면 캔버스로 전광판 옮기기 (재시작 시 reset()에서 원위치)
+                const mount = (board) => { board.classList.remove('hidden'); this.dom.resultsCanvas.appendChild(board); };
                 
                 const { aye, nay, abstain } = this.state.voteResults;
                 const totalMembers = this.state.members.length;
@@ -1424,15 +1504,10 @@
                     this.dom.ruRes.abstain.textContent = abstain; this.dom.ruRes.abstainPct.textContent = ((abstain / totalMembers) * 100).toFixed(1) + '%';
                     this.dom.ruRes.totalVoted.textContent = totalVotes; this.dom.ruRes.totalVotedPct.textContent = ((totalVotes / totalMembers) * 100).toFixed(1) + '%';
 
-                    if (isPassed) {
-                        this.dom.ruResultsBoard.className = "flex flex-col items-center justify-center w-full h-[80vh] p-4 sm:p-8 rounded-lg shadow-inner font-sans bg-[#0000cc]";
-                        this.dom.ruDecisionBanner.textContent = "РЕШЕНИЕ ПРИНЯТО";
-                        this.dom.ruDecisionBanner.className = "mt-12 sm:mt-16 text-center font-bold text-4xl sm:text-6xl uppercase tracking-wider text-white";
-                    } else {
-                        this.dom.ruResultsBoard.className = "flex flex-col items-center justify-center w-full h-[80vh] p-4 sm:p-8 rounded-lg shadow-inner font-sans bg-[#a00000]";
-                        this.dom.ruDecisionBanner.textContent = "РЕШЕНИЕ НЕ ПРИНЯТО";
-                        this.dom.ruDecisionBanner.className = "mt-12 sm:mt-16 text-center font-bold text-4xl sm:text-6xl uppercase tracking-wider text-yellow-400";
-                    }
+                    // 가결: 파란 화면 / 부결: 빨간 화면
+                    this.dom.ruResultsBoard.style.background = isPassed ? '#0000cc' : '#a00000';
+                    this.dom.ruDecisionBanner.textContent = isPassed ? 'РЕШЕНИЕ ПРИНЯТО' : 'РЕШЕНИЕ НЕ ПРИНЯТО';
+                    this.dom.ruDecisionBanner.style.color = isPassed ? '#ffffff' : '#facc15';
                 } 
                 else if (this.state.theme === 'fi') {
                     this.dom.fiCounts.aye.textContent = aye;
@@ -1440,13 +1515,7 @@
                     this.dom.fiCounts.abstain.textContent = abstain;
                     this.dom.fiCounts.absent.textContent = absent;
 
-                    const resultScreen = document.getElementById('results-screen');
-                    const board = this.dom.fiBoard;
-                    const restartContainer = document.getElementById('common-restart-container');
-                    
-                    board.classList.remove('hidden');
-                    board.classList.add('flex');
-                    resultScreen.insertBefore(board, restartContainer);
+                    mount(this.dom.fiBoard);
                 }
                 else if (this.state.theme === 'hu') {
                     this.dom.huRes.aye.textContent = aye; 
@@ -1459,13 +1528,7 @@
                     this.dom.huRes.totalVotedPct.textContent = totalMembers > 0 ? ((totalVotes / totalMembers) * 100).toFixed(1) + '%' : '0.0%';
                     this.dom.huRes.absent.textContent = absent;
 
-                    const resultScreen = document.getElementById('results-screen');
-                    const board = this.dom.huBoard;
-                    const restartContainer = document.getElementById('common-restart-container');
-                    
-                    board.classList.remove('hidden');
-                    board.classList.add('flex');
-                    resultScreen.insertBefore(board, restartContainer);
+                    mount(this.dom.huBoard);
                 }
                 else if (this.state.theme === 'ge') {
                     this.dom.geCounts.aye.textContent = aye;
@@ -1484,37 +1547,27 @@
 
                     const requiredQuorum = Math.ceil(totalMembers / 2);
                     if (totalVotes >= requiredQuorum) {
-                        this.dom.geQuorumBadge.textContent = "კვორუმი არის (정족수 충족)";
-                        this.dom.geQuorumBadge.className = "bg-green-600/30 border border-green-500 text-green-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans";
+                        this.dom.geQuorumBadge.innerHTML = 'კვორუმი არის<span class="tr"> 정족수 충족</span>';
+                        this.dom.geQuorumBadge.className = "bg-green-600/30 border border-green-500 text-green-400 px-5 py-2 rounded-full text-[17px] font-bold tracking-wide font-sans";
                     } else {
-                        this.dom.geQuorumBadge.textContent = "კვორუმი არ არის (정족수 미달)";
-                        this.dom.geQuorumBadge.className = "bg-red-600/30 border border-red-500 text-red-400 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide font-sans";
+                        this.dom.geQuorumBadge.innerHTML = 'კვორუმი არ არის<span class="tr"> 정족수 미달</span>';
+                        this.dom.geQuorumBadge.className = "bg-red-600/30 border border-red-500 text-red-400 px-5 py-2 rounded-full text-[17px] font-bold tracking-wide font-sans";
                     }
 
-                    const resultScreen = document.getElementById('results-screen');
-                    const board = this.dom.geBoard;
-                    const restartContainer = document.getElementById('common-restart-container');
-                    
-                    board.classList.remove('hidden');
-                    board.classList.add('flex');
-                    resultScreen.insertBefore(board, restartContainer);
+                    mount(this.dom.geBoard);
                 }
                 else if (this.isSeatTheme()) {
                     this.renderVotingScreen(); // 최종 상태로 좌석/숫자 갱신
-                    const resultScreen = document.getElementById('results-screen');
-                    const board = this.dom[`${this.state.theme}Board`];
-                    const restartContainer = document.getElementById('common-restart-container');
-                    board.classList.remove('hidden');
-                    board.classList.add('flex');
-                    resultScreen.insertBefore(board, restartContainer);
-
-                    const labels = this.DECISIONS[this.state.theme];
-                    const banner = this.dom.seatDecision;
-                    banner.textContent = isPassed ? labels[0] : labels[1];
-                    banner.style.color = isPassed ? this.state.palette.aye : this.state.palette.nay;
-                    banner.classList.remove('hidden');
-                    resultScreen.insertBefore(banner, restartContainer);
+                    mount(this.dom[`${this.state.theme}Board`]);
                 }
+
+                // 하단 독: 가결/부결 (좌석형 테마는 현지어 문구 함께)
+                const native = this.DECISIONS[this.state.theme];
+                const banner = this.dom.seatDecision;
+                banner.textContent = (native ? native[isPassed ? 0 : 1] + '  ' : '') + (isPassed ? '가결' : '부결') + `  (찬성 ${aye}, 반대 ${nay}, 기권 ${abstain})`;
+                banner.style.color = isPassed ? '#5ee39a' : '#ff7a7a';
+                this.dom.dockResultTitle.textContent = this.state.billTitle;
+                requestAnimationFrame(() => this.fitCanvases());
             },
 
             /* =====================================================================
